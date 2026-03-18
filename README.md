@@ -51,6 +51,29 @@ docker-compose -f docker/docker-compose.yml up -d
 - [ADR-001: Blazor Server](docs/adr/ADR-001-blazor-server.md)
 - [ADR-002: Multi-tenant lógico](docs/adr/ADR-002-multitenant-logico.md)
 
+## Usuarios de prueba
+
+> Contraseña de todos los usuarios: `Test1234!`
+
+### Tenant 1 — ITO Pacífico SpA (`ito-pacifico`)
+
+| Nombre | Email | Rol | Cargo |
+|--------|-------|-----|-------|
+| Rodrigo Fuentes Vidal | admin@itopacifico.cl | Administrador | Administrador ITO |
+| Carlos Méndez Torres | carlos.mendez@itopacifico.cl | Supervisor | Supervisor de Obra |
+| Pablo Rojas Soto | pablo.rojas@itopacifico.cl | Inspector | Inspector ITO Senior |
+| Ana González Muñoz | ana.gonzalez@itopacifico.cl | Inspector | Inspector ITO |
+| Juan Herrera Lagos | juan.herrera@estructurassur.cl | Contratista | Jefe de Obra |
+
+### Tenant 2 — Consultores Sur Ltda (`consultores-sur`)
+
+| Nombre | Email | Rol | Cargo |
+|--------|-------|-----|-------|
+| Marcela Ríos Pinto | admin@consultores-sur.cl | Administrador | Directora |
+| Diego Silva Araya | diego.silva@consultores-sur.cl | Inspector | Inspector |
+
+---
+
 ## Estado del proyecto
 
 | Etapa | Estado |
