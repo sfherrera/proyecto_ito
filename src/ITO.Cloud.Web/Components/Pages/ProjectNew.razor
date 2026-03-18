@@ -1,0 +1,130 @@
+@page "/projects/new"
+
+@inject ItoApiService Api
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>Nuevo Proyecto — ITO Cloud</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick='() => Nav.NavigateTo("/projects")' />
+    <MudText Typo="Typo.h5">Nuevo Proyecto</MudText>
+</MudStack>
+
+<MudPaper Elevation="2" Class="pa-6" Style="max-width:800px">
+    <MudGrid>
+        <MudItem xs="12" sm="6">
+            <MudSelect @bind-Value="_form.CompanyId" Label="Empresa *" Variant="Variant.Outlined" FullWidth="true">
+                @foreach (var c in _companies)
+                {
+                    <MudSelectItem Value="@c.Id">@c.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudTextField @bind-Value="_form.Code" Label="Código *" Variant="Variant.Outlined" FullWidth="true" />
+        </MudItem>
+        <MudItem xs="12">
+            <MudTextField @bind-Value="_form.Name" Label="Nombre *" Variant="Variant.Outlined" FullWidth="true" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudSelect @bind-Value="_form.ProjectType" Label="Tipo de Proyecto" Variant="Variant.Outlined" FullWidth="true">
+                <MudSelectItem Value="@("edificio")">Edificio</MudSelectItem>
+                <MudSelectItem Value="@("casa")">Casa</MudSelectItem>
+                <MudSelectItem Value="@("infraestructura")">Infraestructura</MudSelectItem>
+                <MudSelectItem Value="@("industrial")">Industrial</MudSelectItem>
+                <MudSelectItem Value="@("comercial")">Comercial</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudTextField @bind-Value="_form.MandanteName" Label="Nombre Mandante" Variant="Variant.Outlined" FullWidth="true" />
+        </MudItem>
+        <MudItem xs="12">
+            <MudTextField @bind-Value="_form.Description" Label="Descripción" Variant="Variant.Outlined"
+                          FullWidth="true" Lines="3" />
+        </MudItem>
+        <MudItem xs="12">
+            <MudTextField @bind-Value="_form.Address" Label="Dirección" Variant="Variant.Outlined" FullWidth="true" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudTextField @bind-Value="_form.City" Label="Ciudad" Variant="Variant.Outlined" FullWidth="true" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudTextField @bind-Value="_form.Region" Label="Región" Variant="Variant.Outlined" FullWidth="true" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudDatePicker @bind-Date="_form.StartDate" Label="Fecha Inicio" Variant="Variant.Outlined"
+                           DateFormat="dd/MM/yyyy" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudDatePicker @bind-Date="_form.EstimatedEndDate" Label="Fecha Término Estimada" Variant="Variant.Outlined"
+                           DateFormat="dd/MM/yyyy" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudNumericField @bind-Value="_form.TotalUnits" Label="Total Unidades" Variant="Variant.Outlined" FullWidth="true" />
+        </MudItem>
+    </MudGrid>
+
+    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-6" Spacing="2">
+        <MudButton Variant="Variant.Outlined" OnClick='() => Nav.NavigateTo("/projects")'>Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Disabled="_saving">
+            @(_saving ? "Guardando..." : "Crear Proyecto")
+        </MudButton>
+    </MudStack>
+</MudPaper>
+
+@code {
+    private List<CompanyDto> _companies = [];
+    private bool _saving = false;
+    private ProjectForm _form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _companies = await Api.GetCompaniesAsync(); }
+        catch { Snackbar.Add("Error cargando empresas", Severity.Error); }
+    }
+
+    private async Task Save()
+    {
+        if (_form.CompanyId == Guid.Empty || string.IsNullOrWhiteSpace(_form.Code) || string.IsNullOrWhiteSpace(_form.Name))
+        {
+            Snackbar.Add("Empresa, código y nombre son requeridos", Severity.Warning);
+            return;
+        }
+        _saving = true;
+        var ok = await Api.CreateProjectAsync(new
+        {
+            _form.CompanyId,
+            _form.Code,
+            _form.Name,
+            _form.ProjectType,
+            _form.Description,
+            _form.Address,
+            _form.City,
+            _form.Region,
+            StartDate         = _form.StartDate.HasValue ? DateOnly.FromDateTime(_form.StartDate.Value).ToString("yyyy-MM-dd") : null,
+            EstimatedEndDate  = _form.EstimatedEndDate.HasValue ? DateOnly.FromDateTime(_form.EstimatedEndDate.Value).ToString("yyyy-MM-dd") : null,
+            _form.TotalUnits,
+            _form.MandanteName
+        });
+        _saving = false;
+        if (ok) { Snackbar.Add("Proyecto creado", Severity.Success); Nav.NavigateTo("/projects"); }
+        else    Snackbar.Add("Error al crear proyecto", Severity.Error);
+    }
+
+    private class ProjectForm
+    {
+        public Guid     CompanyId        { get; set; }
+        public string   Code             { get; set; } = string.Empty;
+        public string   Name             { get; set; } = string.Empty;
+        public string   ProjectType      { get; set; } = "edificio";
+        public string?  Description      { get; set; }
+        public string?  Address          { get; set; }
+        public string?  City             { get; set; }
+        public string?  Region           { get; set; }
+        public DateTime? StartDate       { get; set; }
+        public DateTime? EstimatedEndDate{ get; set; }
+        public int?     TotalUnits       { get; set; }
+        public string?  MandanteName     { get; set; }
+    }
+}

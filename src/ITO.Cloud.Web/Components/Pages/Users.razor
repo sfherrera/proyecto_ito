@@ -1,0 +1,211 @@
+@page "/users"
+
+@inject ItoApiService Api
+@inject ISnackbar Snackbar
+
+<PageTitle>Usuarios — ITO Cloud</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">
+        <MudIcon Icon="@Icons.Material.Filled.People" Class="mr-2" />Usuarios
+    </MudText>
+    <MudSpacer />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.PersonAdd"
+               OnClick="OpenCreateDialog">
+        Nuevo Usuario
+    </MudButton>
+</MudStack>
+
+<MudPaper Elevation="2">
+    <MudTable Items="_users" Hover="true" Striped="true" Loading="_loading"
+              Filter="FilterFunc" Dense="true">
+        <ToolBarContent>
+            <MudTextField @bind-Value="_searchText" Placeholder="Buscar..." Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="mt-0" />
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Email</MudTh>
+            <MudTh>Cargo</MudTh>
+            <MudTh>Roles</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh>Acciones</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.FullName</MudTd>
+            <MudTd>@context.Email</MudTd>
+            <MudTd>@context.Position</MudTd>
+            <MudTd>
+                @foreach (var r in context.Roles ?? [])
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Primary" Class="mr-1">@r</MudChip>
+                }
+            </MudTd>
+            <MudTd>
+                <MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Default)" Size="Size.Small">
+                    @(context.IsActive ? "Activo" : "Inactivo")
+                </MudChip>
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                               OnClick="() => OpenEditDialog(context)" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Class="pa-4">No se encontraron usuarios.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+<!-- Dialog crear / editar usuario -->
+<MudDialog @bind-Visible="_showDialog">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(_editId.HasValue ? "Editar Usuario" : "Nuevo Usuario")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_form.FirstName" Label="Nombre *" Variant="Variant.Outlined" FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_form.LastName" Label="Apellido *" Variant="Variant.Outlined" FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_form.Email" Label="Email *" InputType="InputType.Email"
+                              Variant="Variant.Outlined" FullWidth="true" Disabled="_editId.HasValue" />
+            </MudItem>
+            @if (!_editId.HasValue)
+            {
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_form.Password" Label="Contraseña *" InputType="InputType.Password"
+                                  Variant="Variant.Outlined" FullWidth="true" />
+                </MudItem>
+            }
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_form.Rut" Label="RUT" Variant="Variant.Outlined" FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_form.Position" Label="Cargo" Variant="Variant.Outlined" FullWidth="true" />
+            </MudItem>
+            @if (!_editId.HasValue)
+            {
+                <MudItem xs="12">
+                    <MudSelect @bind-Value="_form.Role" Label="Rol" Variant="Variant.Outlined" FullWidth="true">
+                        <MudSelectItem Value="@("Inspector")">Inspector</MudSelectItem>
+                        <MudSelectItem Value="@("Supervisor")">Supervisor</MudSelectItem>
+                        <MudSelectItem Value="@("Director")">Director</MudSelectItem>
+                        <MudSelectItem Value="@("AdminTenant")">Administrador</MudSelectItem>
+                        <MudSelectItem Value="@("Contratista")">Contratista</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+            }
+            @if (_editId.HasValue)
+            {
+                <MudItem xs="12">
+                    <MudSwitch @bind-Value="_form.IsActive" Label="Activo" Color="Color.Success" />
+                </MudItem>
+            }
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _showDialog = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveUser" Disabled="_saving">
+            @(_saving ? "Guardando..." : "Guardar")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<UserDto> _users    = [];
+    private bool   _loading         = true;
+    private bool   _showDialog      = false;
+    private bool   _saving          = false;
+    private string _searchText      = string.Empty;
+    private Guid?  _editId;
+    private UserForm _form          = new();
+
+    protected override async Task OnInitializedAsync() => await LoadUsers();
+
+    private async Task LoadUsers()
+    {
+        _loading = true;
+        try   { _users = await Api.GetUsersAsync(); }
+        catch { Snackbar.Add("Error cargando usuarios", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private bool FilterFunc(UserDto u) =>
+        string.IsNullOrEmpty(_searchText) ||
+        u.FullName.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+        u.Email.Contains(_searchText, StringComparison.OrdinalIgnoreCase);
+
+    private void OpenCreateDialog()
+    {
+        _editId     = null;
+        _form       = new();
+        _showDialog = true;
+    }
+
+    private void OpenEditDialog(UserDto u)
+    {
+        _editId           = u.Id;
+        _form             = new UserForm
+        {
+            FirstName = u.FirstName,
+            LastName  = u.LastName,
+            Email     = u.Email,
+            Rut       = u.Rut,
+            Position  = u.Position,
+            IsActive  = u.IsActive
+        };
+        _showDialog = true;
+    }
+
+    private async Task SaveUser()
+    {
+        if (string.IsNullOrWhiteSpace(_form.FirstName) || string.IsNullOrWhiteSpace(_form.LastName)) return;
+        _saving = true;
+
+        bool ok;
+        if (_editId.HasValue)
+        {
+            ok = await Api.UpdateUserAsync(_editId.Value, new
+            {
+                _form.FirstName, _form.LastName, _form.Rut, _form.Position, _form.IsActive
+            });
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(_form.Email) || string.IsNullOrWhiteSpace(_form.Password))
+            {
+                Snackbar.Add("Email y contraseña son requeridos", Severity.Warning);
+                _saving = false;
+                return;
+            }
+            ok = await Api.CreateUserAsync(new
+            {
+                _form.FirstName, _form.LastName, _form.Email, _form.Password,
+                _form.Rut, _form.Position,
+                Roles = new[] { _form.Role }
+            });
+        }
+
+        _saving     = false;
+        _showDialog = false;
+        if (ok) { Snackbar.Add(_editId.HasValue ? "Usuario actualizado" : "Usuario creado", Severity.Success); await LoadUsers(); }
+        else    Snackbar.Add("Error al guardar usuario", Severity.Error);
+    }
+
+    private class UserForm
+    {
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName  { get; set; } = string.Empty;
+        public string Email     { get; set; } = string.Empty;
+        public string Password  { get; set; } = string.Empty;
+        public string? Rut      { get; set; }
+        public string? Position { get; set; }
+        public string Role      { get; set; } = "Inspector";
+        public bool   IsActive  { get; set; } = true;
+    }
+}

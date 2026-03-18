@@ -89,7 +89,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: >-
         Host=postgres;Port=5432;Database=ito_cloud;Username=postgres;Password=joanmiro
       JwtSettings__SecretKey:          ${JWT_SECRET:-SuperSecretKeyParaITOCloud2025XYZ!}
@@ -123,7 +123,7 @@ services:
       api:
         condition: service_healthy
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_ENVIRONMENT: Development
       ApiSettings__BaseUrl:   http://api:8080
     ports:
       - "7001:8081"

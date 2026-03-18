@@ -1,0 +1,157 @@
+@page "/inspections/{Id:guid}"
+
+@inject ItoApiService Api
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>Inspección — ITO Cloud</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_inspection == null)
+{
+    <MudAlert Severity="Severity.Error">Inspección no encontrada.</MudAlert>
+}
+else
+{
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4" Wrap="Wrap.Wrap">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick='() => Nav.NavigateTo("/inspections")' />
+        <MudText Typo="Typo.h5">@_inspection.Code — @_inspection.Title</MudText>
+        <MudChip T="string" Color="@GetStatusColor(_inspection.Status)" Size="Size.Small">@_inspection.Status</MudChip>
+        <MudSpacer />
+        @if (_inspection.Status == "Programada")
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Success"
+                       StartIcon="@Icons.Material.Filled.PlayArrow"
+                       OnClick="StartInspection" Disabled="_working">
+                Iniciar
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Error"
+                       StartIcon="@Icons.Material.Filled.Cancel"
+                       OnClick="OpenCancelDialog" Disabled="_working">
+                Cancelar
+            </MudButton>
+        }
+    </MudStack>
+
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.subtitle1" Class="mb-3">Información General</MudText>
+                <MudList T="string" Dense="true">
+                    <MudListItem><b>Tipo:</b> @_inspection.InspectionType</MudListItem>
+                    <MudListItem><b>Prioridad:</b> @_inspection.Priority</MudListItem>
+                    <MudListItem><b>Inspector:</b> @(_inspection.AssignedToName ?? "—")</MudListItem>
+                    <MudListItem><b>Contratista:</b> @(_inspection.ContractorName ?? "—")</MudListItem>
+                    <MudListItem><b>Fecha programada:</b> @_inspection.ScheduledDate.ToString("dd/MM/yyyy HH:mm")</MudListItem>
+                    @if (_inspection.StartedAt.HasValue)
+                    {
+                        <MudListItem><b>Iniciada:</b> @_inspection.StartedAt.Value.ToString("dd/MM/yyyy HH:mm")</MudListItem>
+                    }
+                    @if (_inspection.FinishedAt.HasValue)
+                    {
+                        <MudListItem><b>Finalizada:</b> @_inspection.FinishedAt.Value.ToString("dd/MM/yyyy HH:mm")</MudListItem>
+                    }
+                </MudList>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.subtitle1" Class="mb-3">Resultados</MudText>
+                @if (_inspection.Score.HasValue)
+                {
+                    <MudStack AlignItems="AlignItems.Center" Class="mb-2">
+                        <MudText Typo="Typo.h3" Color="@(_inspection.Passed == true ? Color.Success : Color.Error)">
+                            @_inspection.Score.Value.ToString("F1")%
+                        </MudText>
+                        <MudText Typo="Typo.body2">@(_inspection.Passed == true ? "APROBADA" : "NO APROBADA")</MudText>
+                    </MudStack>
+                }
+                else
+                {
+                    <MudText Class="mud-text-secondary">Sin puntaje aún</MudText>
+                }
+                <MudDivider Class="my-2" />
+                <MudList T="string" Dense="true">
+                    <MudListItem><b>Total preguntas:</b> @_inspection.TotalQuestions</MudListItem>
+                    <MudListItem><b>Respondidas:</b> @_inspection.AnsweredQuestions</MudListItem>
+                    <MudListItem><b>Conformes:</b> @_inspection.ConformingCount</MudListItem>
+                    <MudListItem><b>No conformes:</b> @_inspection.NonConformingCount</MudListItem>
+                </MudList>
+            </MudPaper>
+        </MudItem>
+
+        @if (!string.IsNullOrEmpty(_inspection.Notes))
+        {
+            <MudItem xs="12">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">Notas</MudText>
+                    <MudText>@_inspection.Notes</MudText>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+<!-- Dialog cancelar -->
+<MudDialog @bind-Visible="_showCancelDialog">
+    <TitleContent><MudText Typo="Typo.h6">Cancelar Inspección</MudText></TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="_cancelReason" Label="Motivo (opcional)" Variant="Variant.Outlined" FullWidth="true" Lines="3" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _showCancelDialog = false">Cerrar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="CancelInspection">Confirmar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private InspectionDetailDto? _inspection;
+    private bool   _loading           = true;
+    private bool   _working           = false;
+    private bool   _showCancelDialog  = false;
+    private string _cancelReason      = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try   { _inspection = await Api.GetInspectionByIdAsync(Id); }
+        catch { Snackbar.Add("Error cargando inspección", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private async Task StartInspection()
+    {
+        _working = true;
+        var ok = await Api.StartInspectionAsync(Id);
+        if (ok) { Snackbar.Add("Inspección iniciada", Severity.Success); _inspection = await Api.GetInspectionByIdAsync(Id); }
+        else    Snackbar.Add("Error al iniciar", Severity.Error);
+        _working = false;
+    }
+
+    private void OpenCancelDialog() { _cancelReason = string.Empty; _showCancelDialog = true; }
+
+    private async Task CancelInspection()
+    {
+        _showCancelDialog = false;
+        _working = true;
+        var ok = await Api.CancelInspectionAsync(Id, _cancelReason);
+        if (ok) { Snackbar.Add("Inspección cancelada", Severity.Success); Nav.NavigateTo("/inspections"); }
+        else    Snackbar.Add("Error al cancelar", Severity.Error);
+        _working = false;
+    }
+
+    private static Color GetStatusColor(string s) => s switch
+    {
+        "Programada" => Color.Info,
+        "EnProceso"  => Color.Warning,
+        "Finalizada" => Color.Success,
+        "Cerrada"    => Color.Default,
+        "Cancelada"  => Color.Error,
+        _            => Color.Default
+    };
+}

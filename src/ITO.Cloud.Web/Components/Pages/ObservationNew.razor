@@ -1,0 +1,128 @@
+@page "/observations/new"
+
+@inject ItoApiService Api
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>Nueva Observación — ITO Cloud</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick='() => Nav.NavigateTo("/observations")' />
+    <MudText Typo="Typo.h5">Nueva Observación</MudText>
+</MudStack>
+
+<MudPaper Elevation="2" Class="pa-6" Style="max-width:800px">
+    <MudGrid>
+        <MudItem xs="12">
+            <MudTextField @bind-Value="_form.Title" Label="Título *" Variant="Variant.Outlined" FullWidth="true" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudSelect @bind-Value="_form.ProjectId" Label="Proyecto *" Variant="Variant.Outlined" FullWidth="true">
+                @foreach (var p in _projects)
+                {
+                    <MudSelectItem Value="@p.Id">@p.Name (@p.Code)</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudSelect @bind-Value="_form.Severity" Label="Severidad *" Variant="Variant.Outlined" FullWidth="true">
+                <MudSelectItem Value="@("Baja")">Baja</MudSelectItem>
+                <MudSelectItem Value="@("Media")">Media</MudSelectItem>
+                <MudSelectItem Value="@("Alta")">Alta</MudSelectItem>
+                <MudSelectItem Value="@("Critica")">Crítica</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12">
+            <MudTextField @bind-Value="_form.Description" Label="Descripción *" Variant="Variant.Outlined"
+                          FullWidth="true" Lines="4" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudTextField @bind-Value="_form.Category" Label="Categoría" Variant="Variant.Outlined" FullWidth="true" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudTextField @bind-Value="_form.LocationDescription" Label="Ubicación / Sector" Variant="Variant.Outlined" FullWidth="true" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudSelect @bind-Value="_form.AssignedToId" Label="Asignar a" Variant="Variant.Outlined" FullWidth="true">
+                <MudSelectItem Value="@(Guid.Empty)">— Sin asignar —</MudSelectItem>
+                @foreach (var u in _users)
+                {
+                    <MudSelectItem Value="@u.Id">@u.FullName</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudDatePicker @bind-Date="_form.DueDate" Label="Fecha Límite" Variant="Variant.Outlined"
+                           DateFormat="dd/MM/yyyy" />
+        </MudItem>
+        <MudItem xs="12">
+            <MudTextField @bind-Value="_form.RootCause" Label="Causa Raíz" Variant="Variant.Outlined"
+                          FullWidth="true" Lines="2" />
+        </MudItem>
+    </MudGrid>
+
+    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-6" Spacing="2">
+        <MudButton Variant="Variant.Outlined" OnClick='() => Nav.NavigateTo("/observations")'>Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="Save" Disabled="_saving">
+            @(_saving ? "Guardando..." : "Crear Observación")
+        </MudButton>
+    </MudStack>
+</MudPaper>
+
+@code {
+    private List<ProjectDto> _projects = [];
+    private List<UserDto>    _users    = [];
+    private bool _saving = false;
+    private ObsForm _form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var t1 = Api.GetProjectsAsync();
+            var t2 = Api.GetUsersAsync();
+            await Task.WhenAll(t1, t2);
+            _projects = t1.Result;
+            _users    = t2.Result;
+        }
+        catch { Snackbar.Add("Error cargando datos", Severity.Error); }
+    }
+
+    private async Task Save()
+    {
+        if (_form.ProjectId == Guid.Empty || string.IsNullOrWhiteSpace(_form.Title) || string.IsNullOrWhiteSpace(_form.Description))
+        {
+            Snackbar.Add("Proyecto, título y descripción son requeridos", Severity.Warning);
+            return;
+        }
+        _saving = true;
+        var ok = await Api.CreateObservationAsync(new
+        {
+            _form.ProjectId,
+            _form.Title,
+            _form.Description,
+            Severity             = _form.Severity,
+            _form.Category,
+            _form.LocationDescription,
+            AssignedToId         = _form.AssignedToId == Guid.Empty ? (Guid?)null : _form.AssignedToId,
+            DueDate              = _form.DueDate.HasValue ? DateOnly.FromDateTime(_form.DueDate.Value).ToString("yyyy-MM-dd") : null,
+            _form.RootCause
+        });
+        _saving = false;
+        if (ok) { Snackbar.Add("Observación creada", Severity.Success); Nav.NavigateTo("/observations"); }
+        else    Snackbar.Add("Error al crear observación", Severity.Error);
+    }
+
+    private class ObsForm
+    {
+        public Guid      ProjectId           { get; set; }
+        public string    Title               { get; set; } = string.Empty;
+        public string    Description         { get; set; } = string.Empty;
+        public string    Severity            { get; set; } = "Media";
+        public string?   Category            { get; set; }
+        public string?   LocationDescription { get; set; }
+        public Guid      AssignedToId        { get; set; }
+        public DateTime? DueDate             { get; set; }
+        public string?   RootCause           { get; set; }
+    }
+}

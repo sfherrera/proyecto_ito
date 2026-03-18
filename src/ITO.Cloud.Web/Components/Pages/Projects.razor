@@ -1,5 +1,5 @@
 @page "/projects"
-@attribute [Authorize]
+
 
 @inject ItoApiService Api
 @inject ISnackbar Snackbar
@@ -43,7 +43,7 @@
                     @context.Status
                 </MudChip>
             </MudTd>
-            <MudTd>@context.StartDate?.ToString("dd/MM/yyyy")</MudTd>
+            <MudTd>@context.StartDate</MudTd>
             <MudTd>
                 <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Primary"
                                Href="@($"/projects/{context.Id}")" />

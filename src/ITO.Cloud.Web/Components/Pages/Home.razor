@@ -1,5 +1,5 @@
 @page "/"
-@attribute [Authorize]
+
 
 @inject ItoApiService Api
 
@@ -137,19 +137,45 @@ else if (_data != null)
 }
 else
 {
-    <MudAlert Severity="Severity.Warning">
-        No se pudo cargar el dashboard. Verifique que la API esté disponible.
+    <MudAlert Severity="Severity.Warning" Class="mb-3">
+        No se pudo conectar a la API. Verifique que el proyecto <strong>ITO.Cloud.API</strong> esté en ejecución.
     </MudAlert>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="Reload">
+        Reconectar
+    </MudButton>
 }
 
 @code {
     private DashboardDto? _data;
     private bool _loading = true;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task Reload()
     {
-        try   { _data = await Api.GetDashboardAsync(); }
-        catch { /* API no disponible */ }
-        finally { _loading = false; }
+        _loading = true;
+        _data    = null;
+        StateHasChanged();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        // 3 intentos con 1.5 s de pausa (máx ~4.5 s extra si API arranca tarde)
+        for (int i = 0; i < 3; i++)
+        {
+            try
+            {
+                _data = await Api.GetDashboardAsync();
+                if (_data != null) break;
+            }
+            catch { }
+
+            if (i < 2)
+                await Task.Delay(1500);
+        }
+        _loading = false;
     }
 }

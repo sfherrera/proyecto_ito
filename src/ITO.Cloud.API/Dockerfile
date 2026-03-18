@@ -20,9 +20,9 @@ RUN dotnet publish "src/ITO.Cloud.API/ITO.Cloud.API.csproj" \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# Instalar fuentes para QuestPDF (reportes PDF)
+# Instalar fuentes para QuestPDF (reportes PDF) + curl para healthcheck
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libfontconfig1 fonts-liberation && \
+    libfontconfig1 fonts-liberation curl && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/publish .

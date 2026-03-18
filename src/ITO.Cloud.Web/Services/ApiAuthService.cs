@@ -4,9 +4,19 @@ using System.Net.Http.Json;
 
 namespace ITO.Cloud.Web.Services;
 
+// ─── DTOs que coinciden con la respuesta real de la API ──────────────────────
 public record LoginRequest(string Email, string Password);
-public record LoginResponse(string Token, DateTime ExpiresAt, UserInfo User);
-public record UserInfo(string Id, string Email, string FullName, string TenantId, List<string> Roles);
+
+// La API devuelve: { "success": true, "data": { "accessToken": "...", ... } }
+public record LoginApiData(
+    string AccessToken,
+    DateTime ExpiresAt,
+    string UserId,
+    string FullName,
+    string Email,
+    string TenantId,
+    string TenantName,
+    List<string> Roles);
 
 public class ApiAuthService
 {
@@ -39,10 +49,11 @@ public class ApiAuthService
             if (!response.IsSuccessStatusCode)
                 return (false, "Credenciales incorrectas.");
 
-            var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
-            if (result == null) return (false, "Respuesta inválida del servidor.");
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<LoginApiData>>();
+            if (result?.Data?.AccessToken is not { Length: > 0 })
+                return (false, "Respuesta inválida del servidor.");
 
-            await _tokenStorage.SetTokenAsync(result.Token);
+            await _tokenStorage.SetTokenAsync(result.Data.AccessToken);
 
             if (_authStateProvider is JwtAuthStateProvider jwtProvider)
                 jwtProvider.NotifyAuthStateChanged();

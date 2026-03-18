@@ -1,5 +1,4 @@
 @page "/companies"
-@attribute [Authorize]
 
 @inject ItoApiService Api
 @inject ISnackbar Snackbar
@@ -43,6 +42,8 @@
                 </MudChip>
             </MudTd>
             <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                               OnClick="() => OpenEditDialog(context.Id)" />
                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
                                OnClick="() => DeleteCompany(context.Id)" />
             </MudTd>
@@ -53,10 +54,10 @@
     </MudTable>
 </MudPaper>
 
-<!-- Dialog crear empresa -->
+<!-- Dialog crear / editar empresa -->
 <MudDialog @bind-Visible="_showDialog">
     <TitleContent>
-        <MudText Typo="Typo.h6">Nueva Empresa</MudText>
+        <MudText Typo="Typo.h6">@(_editId.HasValue ? "Editar Empresa" : "Nueva Empresa")</MudText>
     </TitleContent>
     <DialogContent>
         <MudGrid>
@@ -77,6 +78,18 @@
             <MudItem xs="12">
                 <MudTextField @bind-Value="_form.Email" Label="Email" Variant="Variant.Outlined" FullWidth="true" />
             </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_form.Phone" Label="Teléfono" Variant="Variant.Outlined" FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_form.City" Label="Ciudad" Variant="Variant.Outlined" FullWidth="true" />
+            </MudItem>
+            @if (_editId.HasValue)
+            {
+                <MudItem xs="12">
+                    <MudSwitch @bind-Value="_form.IsActive" Label="Activa" Color="Color.Success" />
+                </MudItem>
+            }
         </MudGrid>
     </DialogContent>
     <DialogActions>
@@ -93,12 +106,10 @@
     private bool   _showDialog = false;
     private bool   _saving     = false;
     private string _searchText = string.Empty;
-    private CompanyForm _form  = new();
+    private Guid?  _editId;
+    private CompanyForm _form = new();
 
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadCompanies();
-    }
+    protected override async Task OnInitializedAsync() => await LoadCompanies();
 
     private async Task LoadCompanies()
     {
@@ -115,24 +126,62 @@
 
     private void OpenCreateDialog()
     {
-        _form = new();
+        _editId = null;
+        _form   = new();
         _showDialog = true;
+    }
+
+    private async Task OpenEditDialog(Guid id)
+    {
+        _editId = id;
+        _form   = new();
+        _showDialog = true;
+        try
+        {
+            var detail = await Api.GetCompanyByIdAsync(id);
+            if (detail != null)
+            {
+                _form.Name        = detail.Name;
+                _form.Rut         = detail.Rut;
+                _form.Email       = detail.Email;
+                _form.Phone       = detail.Phone;
+                _form.City        = detail.City;
+                _form.CompanyType = detail.CompanyType;
+                _form.IsActive    = detail.IsActive;
+            }
+        }
+        catch { Snackbar.Add("Error cargando empresa", Severity.Error); }
     }
 
     private async Task SaveCompany()
     {
         if (string.IsNullOrWhiteSpace(_form.Name)) return;
         _saving = true;
-        var ok = await Api.CreateCompanyAsync(new
+
+        bool ok;
+        if (_editId.HasValue)
         {
-            _form.Name, _form.Rut, _form.Email,
-            BusinessName  = _form.Name,
-            CompanyType   = _form.CompanyType,
-        });
-        _saving = false;
+            ok = await Api.UpdateCompanyAsync(_editId.Value, new
+            {
+                _form.Name, _form.Rut, BusinessName = _form.Name,
+                _form.CompanyType, _form.Email, _form.Phone, _form.City,
+                _form.IsActive, Address = (string?)null, Region = (string?)null,
+                Website = (string?)null, Notes = (string?)null
+            });
+        }
+        else
+        {
+            ok = await Api.CreateCompanyAsync(new
+            {
+                _form.Name, _form.Rut, BusinessName = _form.Name,
+                CompanyType = _form.CompanyType, _form.Email, _form.Phone, _form.City
+            });
+        }
+
+        _saving     = false;
         _showDialog = false;
-        if (ok) { Snackbar.Add("Empresa creada", Severity.Success); await LoadCompanies(); }
-        else    Snackbar.Add("Error al crear empresa", Severity.Error);
+        if (ok) { Snackbar.Add(_editId.HasValue ? "Empresa actualizada" : "Empresa creada", Severity.Success); await LoadCompanies(); }
+        else    Snackbar.Add("Error al guardar empresa", Severity.Error);
     }
 
     private async Task DeleteCompany(Guid id)
@@ -147,6 +196,9 @@
         public string Name        { get; set; } = string.Empty;
         public string? Rut        { get; set; }
         public string? Email      { get; set; }
+        public string? Phone      { get; set; }
+        public string? City       { get; set; }
         public string CompanyType { get; set; } = "Contratista";
+        public bool   IsActive    { get; set; } = true;
     }
 }

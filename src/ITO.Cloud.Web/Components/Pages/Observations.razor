@@ -1,5 +1,5 @@
 @page "/observations"
-@attribute [Authorize]
+
 
 @inject ItoApiService Api
 @inject ISnackbar Snackbar
@@ -47,10 +47,10 @@
                 </MudChip>
             </MudTd>
             <MudTd>
-                @if (context.DueDate.HasValue)
+                @if (!string.IsNullOrEmpty(context.DueDate))
                 {
                     <MudText Color="@(context.IsOverdue ? Color.Error : Color.Default)">
-                        @context.DueDate.Value.ToString("dd/MM/yyyy")
+                        @context.DueDate
                         @if (context.IsOverdue) { <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" /> }
                     </MudText>
                 }

@@ -1,0 +1,226 @@
+@page "/projects/{Id:guid}"
+
+@inject ItoApiService Api
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>Proyecto — ITO Cloud</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_project == null)
+{
+    <MudAlert Severity="Severity.Error">Proyecto no encontrado.</MudAlert>
+}
+else
+{
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick='() => Nav.NavigateTo("/projects")' />
+        <MudText Typo="Typo.h5">@_project.Name</MudText>
+        <MudChip T="string" Color="@GetStatusColor(_project.Status)" Size="Size.Small">@_project.Status</MudChip>
+        <MudSpacer />
+        @if (!_editing)
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Edit"
+                       OnClick="() => _editing = true">Editar</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Error"
+                       StartIcon="@Icons.Material.Filled.Delete"
+                       OnClick="DeleteProject">Eliminar</MudButton>
+        }
+    </MudStack>
+
+    @if (!_editing)
+    {
+        <!-- Vista detalle -->
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudText Typo="Typo.subtitle1" Class="mb-3">Información General</MudText>
+                    <MudList T="string" Dense="true">
+                        <MudListItem><b>Código:</b> @_project.Code</MudListItem>
+                        <MudListItem><b>Empresa:</b> @_project.CompanyName</MudListItem>
+                        <MudListItem><b>Tipo:</b> @_project.ProjectType</MudListItem>
+                        <MudListItem><b>Mandante:</b> @(_project.MandanteName ?? "—")</MudListItem>
+                        <MudListItem><b>Unidades:</b> @(_project.TotalUnits?.ToString() ?? "—")</MudListItem>
+                    </MudList>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudText Typo="Typo.subtitle1" Class="mb-3">Ubicación y Fechas</MudText>
+                    <MudList T="string" Dense="true">
+                        <MudListItem><b>Dirección:</b> @(_project.Address ?? "—")</MudListItem>
+                        <MudListItem><b>Ciudad:</b> @(_project.City ?? "—")</MudListItem>
+                        <MudListItem><b>Región:</b> @(_project.Region ?? "—")</MudListItem>
+                        <MudListItem><b>Inicio:</b> @(_project.StartDate ?? "—")</MudListItem>
+                        <MudListItem><b>Término estimado:</b> @(_project.EstimatedEndDate ?? "—")</MudListItem>
+                    </MudList>
+                </MudPaper>
+            </MudItem>
+            @if (!string.IsNullOrEmpty(_project.Description))
+            {
+                <MudItem xs="12">
+                    <MudPaper Elevation="2" Class="pa-4">
+                        <MudText Typo="Typo.subtitle1" Class="mb-2">Descripción</MudText>
+                        <MudText>@_project.Description</MudText>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+    else
+    {
+        <!-- Formulario edición -->
+        <MudPaper Elevation="2" Class="pa-6" Style="max-width:800px">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_form.Code" Label="Código *" Variant="Variant.Outlined" FullWidth="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_form.Name" Label="Nombre *" Variant="Variant.Outlined" FullWidth="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect @bind-Value="_form.ProjectType" Label="Tipo" Variant="Variant.Outlined" FullWidth="true">
+                        <MudSelectItem Value="@("edificio")">Edificio</MudSelectItem>
+                        <MudSelectItem Value="@("casa")">Casa</MudSelectItem>
+                        <MudSelectItem Value="@("infraestructura")">Infraestructura</MudSelectItem>
+                        <MudSelectItem Value="@("industrial")">Industrial</MudSelectItem>
+                        <MudSelectItem Value="@("comercial")">Comercial</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect @bind-Value="_form.Status" Label="Estado" Variant="Variant.Outlined" FullWidth="true">
+                        <MudSelectItem Value="@("Activo")">Activo</MudSelectItem>
+                        <MudSelectItem Value="@("Paralizado")">Paralizado</MudSelectItem>
+                        <MudSelectItem Value="@("Terminado")">Terminado</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_form.Description" Label="Descripción" Variant="Variant.Outlined"
+                                  FullWidth="true" Lines="3" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_form.Address" Label="Dirección" Variant="Variant.Outlined" FullWidth="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_form.City" Label="Ciudad" Variant="Variant.Outlined" FullWidth="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_form.Region" Label="Región" Variant="Variant.Outlined" FullWidth="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_form.MandanteName" Label="Mandante" Variant="Variant.Outlined" FullWidth="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField @bind-Value="_form.TotalUnits" Label="Total Unidades" Variant="Variant.Outlined" FullWidth="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudSwitch @bind-Value="_form.IsActive" Label="Activo" Color="Color.Success" />
+                </MudItem>
+            </MudGrid>
+            <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4" Spacing="2">
+                <MudButton Variant="Variant.Outlined" OnClick="() => _editing = false">Cancelar</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UpdateProject" Disabled="_saving">
+                    @(_saving ? "Guardando..." : "Guardar")
+                </MudButton>
+            </MudStack>
+        </MudPaper>
+    }
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private ProjectDetailDto? _project;
+    private bool _loading = true;
+    private bool _editing = false;
+    private bool _saving  = false;
+    private EditForm _form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _project = await Api.GetProjectByIdAsync(Id);
+            if (_project != null) LoadForm();
+        }
+        catch { Snackbar.Add("Error cargando proyecto", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private void LoadForm()
+    {
+        _form = new EditForm
+        {
+            Code         = _project!.Code,
+            Name         = _project.Name,
+            ProjectType  = _project.ProjectType,
+            Status       = _project.Status,
+            Description  = _project.Description,
+            Address      = _project.Address,
+            City         = _project.City,
+            Region       = _project.Region,
+            MandanteName = _project.MandanteName,
+            TotalUnits   = _project.TotalUnits,
+            IsActive     = _project.IsActive
+        };
+    }
+
+    private async Task UpdateProject()
+    {
+        _saving = true;
+        var ok = await Api.UpdateProjectAsync(Id, new
+        {
+            _form.Code, _form.Name, _form.ProjectType, _form.Status,
+            _form.Description, _form.Address, _form.City, _form.Region,
+            StartDate        = (string?)null,
+            EstimatedEndDate = (string?)null,
+            _form.TotalUnits,
+            ItoManagerId  = (Guid?)null,
+            _form.MandanteName,
+            _form.IsActive,
+            Notes = (string?)null
+        });
+        _saving = false;
+        if (ok)
+        {
+            Snackbar.Add("Proyecto actualizado", Severity.Success);
+            _project = await Api.GetProjectByIdAsync(Id);
+            _editing = false;
+        }
+        else Snackbar.Add("Error al actualizar", Severity.Error);
+    }
+
+    private async Task DeleteProject()
+    {
+        var ok = await Api.DeleteProjectAsync(Id);
+        if (ok) { Snackbar.Add("Proyecto eliminado", Severity.Success); Nav.NavigateTo("/projects"); }
+        else    Snackbar.Add("Error al eliminar", Severity.Error);
+    }
+
+    private static Color GetStatusColor(string? s) => s switch
+    {
+        "Activo"     => Color.Success,
+        "Paralizado" => Color.Warning,
+        "Terminado"  => Color.Default,
+        _            => Color.Info
+    };
+
+    private class EditForm
+    {
+        public string  Code         { get; set; } = string.Empty;
+        public string  Name         { get; set; } = string.Empty;
+        public string  ProjectType  { get; set; } = "edificio";
+        public string  Status       { get; set; } = "Activo";
+        public string? Description  { get; set; }
+        public string? Address      { get; set; }
+        public string? City         { get; set; }
+        public string? Region       { get; set; }
+        public string? MandanteName { get; set; }
+        public int?    TotalUnits   { get; set; }
+        public bool    IsActive     { get; set; } = true;
+    }
+}

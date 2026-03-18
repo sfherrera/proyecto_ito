@@ -31,7 +31,10 @@ builder.Services.AddAuthorizationCore();
 var apiUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7200";
 builder.Services.AddScoped<ApiAuthService>();
 builder.Services.AddHttpClient<ItoApiService>(client =>
-    client.BaseAddress = new Uri(apiUrl));
+{
+    client.BaseAddress = new Uri(apiUrl);
+    client.Timeout     = TimeSpan.FromSeconds(5);   // evita esperas largas si la API no arrancó aún
+});
 
 var app = builder.Build();
 
@@ -41,6 +44,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
     app.UseHttpsRedirection();
 }
+app.UseAuthentication();
 app.UseStaticFiles();
 app.UseAntiforgery();
 app.MapStaticAssets();

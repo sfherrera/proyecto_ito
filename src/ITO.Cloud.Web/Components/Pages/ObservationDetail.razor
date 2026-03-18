@@ -1,0 +1,160 @@
+@page "/observations/{Id:guid}"
+
+@inject ItoApiService Api
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>Observación — ITO Cloud</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Warning" />
+}
+else if (_obs == null)
+{
+    <MudAlert Severity="Severity.Error">Observación no encontrada.</MudAlert>
+}
+else
+{
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4" Wrap="Wrap.Wrap">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick='() => Nav.NavigateTo("/observations")' />
+        <MudText Typo="Typo.h5">@_obs.Code</MudText>
+        <MudChip T="string" Color="@GetSeverityColor(_obs.Severity)" Size="Size.Small">@_obs.Severity</MudChip>
+        <MudChip T="string" Color="@GetStatusColor(_obs.Status)" Size="Size.Small">@_obs.Status</MudChip>
+        <MudSpacer />
+        @if (_obs.Status != "Cerrada" && _obs.Status != "Rechazada")
+        {
+            <MudButton Variant="Variant.Outlined" Color="Color.Success"
+                       StartIcon="@Icons.Material.Filled.CheckCircle"
+                       OnClick="OpenCloseDialog" Disabled="_working">
+                Cerrar
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Warning"
+                       StartIcon="@Icons.Material.Filled.Refresh"
+                       OnClick="OpenReviewDialog" Disabled="_working">
+                En Revisión
+            </MudButton>
+        }
+    </MudStack>
+
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.subtitle1" Class="mb-3">Detalle</MudText>
+                <MudText Typo="Typo.body1" Class="mb-3">@_obs.Title</MudText>
+                <MudText Class="mud-text-secondary">@_obs.Description</MudText>
+                <MudDivider Class="my-3" />
+                <MudList T="string" Dense="true">
+                    <MudListItem><b>Categoría:</b> @(_obs.Category ?? "—")</MudListItem>
+                    <MudListItem><b>Ubicación:</b> @(_obs.LocationDescription ?? "—")</MudListItem>
+                    <MudListItem><b>Asignado a:</b> @(_obs.AssignedToName ?? "—")</MudListItem>
+                    <MudListItem><b>Contratista:</b> @(_obs.ContractorName ?? "—")</MudListItem>
+                    <MudListItem><b>Fecha límite:</b> @(_obs.DueDate ?? "—")</MudListItem>
+                    <MudListItem><b>Detectada:</b> @_obs.DetectedAt.ToString("dd/MM/yyyy")</MudListItem>
+                    @if (_obs.ClosedAt.HasValue)
+                    {
+                        <MudListItem><b>Cerrada:</b> @_obs.ClosedAt.Value.ToString("dd/MM/yyyy")</MudListItem>
+                    }
+                </MudList>
+            </MudPaper>
+        </MudItem>
+
+        @if (_obs.History?.Count > 0)
+        {
+            <MudItem xs="12" md="6">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudText Typo="Typo.subtitle1" Class="mb-3">Historial</MudText>
+                    <MudTimeline TimelinePosition="TimelinePosition.Start">
+                        @foreach (var h in _obs.History)
+                        {
+                            <MudTimelineItem Color="Color.Primary" Size="Size.Small">
+                                <MudText Typo="Typo.body2"><b>@h.Action</b></MudText>
+                                @if (!string.IsNullOrEmpty(h.Comment))
+                                {
+                                    <MudText Typo="Typo.caption">@h.Comment</MudText>
+                                }
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                    @h.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                                </MudText>
+                            </MudTimelineItem>
+                        }
+                    </MudTimeline>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+<!-- Dialog cambiar estado -->
+<MudDialog @bind-Visible="_showStatusDialog">
+    <TitleContent><MudText Typo="Typo.h6">Cambiar Estado</MudText></TitleContent>
+    <DialogContent>
+        <MudText Class="mb-3">Nuevo estado: <b>@_newStatus</b></MudText>
+        <MudTextField @bind-Value="_statusComment" Label="Comentario (opcional)" Variant="Variant.Outlined"
+                      FullWidth="true" Lines="3" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _showStatusDialog = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ChangeStatus">Confirmar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private ObservationDetailDto? _obs;
+    private bool   _loading          = true;
+    private bool   _working          = false;
+    private bool   _showStatusDialog = false;
+    private string _newStatus        = string.Empty;
+    private string _statusComment    = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try   { _obs = await Api.GetObservationByIdAsync(Id); }
+        catch { Snackbar.Add("Error cargando observación", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private void OpenCloseDialog()   => OpenStatusDialog("Cerrada");
+    private void OpenReviewDialog()  => OpenStatusDialog("EnRevision");
+
+    private void OpenStatusDialog(string newStatus)
+    {
+        _newStatus        = newStatus;
+        _statusComment    = string.Empty;
+        _showStatusDialog = true;
+    }
+
+    private async Task ChangeStatus()
+    {
+        _showStatusDialog = false;
+        _working          = true;
+        bool ok;
+        if (_newStatus == "Cerrada")
+            ok = await Api.CloseObservationAsync(Id, _statusComment);
+        else
+            ok = await Api.UpdateObservationStatusAsync(Id, new { NewStatus = _newStatus, Comment = _statusComment });
+
+        if (ok) { Snackbar.Add("Estado actualizado", Severity.Success); _obs = await Api.GetObservationByIdAsync(Id); }
+        else    Snackbar.Add("Error al actualizar estado", Severity.Error);
+        _working = false;
+    }
+
+    private static Color GetSeverityColor(string s) => s switch
+    {
+        "Critica" => Color.Error,
+        "Alta"    => Color.Warning,
+        "Media"   => Color.Info,
+        _         => Color.Default
+    };
+
+    private static Color GetStatusColor(string s) => s switch
+    {
+        "Abierta"    => Color.Warning,
+        "EnRevision" => Color.Info,
+        "Cerrada"    => Color.Success,
+        "Rechazada"  => Color.Error,
+        _            => Color.Default
+    };
+}
