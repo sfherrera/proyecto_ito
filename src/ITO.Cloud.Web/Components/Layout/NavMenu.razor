@@ -1,0 +1,29 @@
+<MudNavMenu>
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
+        Dashboard
+    </MudNavLink>
+
+    <MudNavGroup Title="Proyectos" Icon="@Icons.Material.Filled.Folder" Expanded="true">
+        <MudNavLink Href="/companies" Icon="@Icons.Material.Filled.Business">
+            Empresas
+        </MudNavLink>
+        <MudNavLink Href="/projects" Icon="@Icons.Material.Filled.AccountTree">
+            Proyectos
+        </MudNavLink>
+    </MudNavGroup>
+
+    <MudNavGroup Title="Inspecciones" Icon="@Icons.Material.Filled.Assignment" Expanded="true">
+        <MudNavLink Href="/inspections" Icon="@Icons.Material.Filled.CheckCircle">
+            Inspecciones
+        </MudNavLink>
+        <MudNavLink Href="/observations" Icon="@Icons.Material.Filled.Warning">
+            Observaciones
+        </MudNavLink>
+    </MudNavGroup>
+
+    <MudDivider Class="my-2" />
+
+    <MudNavLink Href="/users" Icon="@Icons.Material.Filled.People">
+        Usuarios
+    </MudNavLink>
+</MudNavMenu>

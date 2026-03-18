@@ -1,0 +1,93 @@
+@page "/inspections"
+@attribute [Authorize]
+
+@inject ItoApiService Api
+@inject ISnackbar Snackbar
+
+<PageTitle>Inspecciones — ITO Cloud</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">
+        <MudIcon Icon="@Icons.Material.Filled.Assignment" Class="mr-2" />Inspecciones
+    </MudText>
+    <MudSpacer />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               Href="/inspections/new">
+        Nueva Inspección
+    </MudButton>
+</MudStack>
+
+<MudPaper Elevation="2">
+    <MudTable Items="_inspections" Hover="true" Striped="true" Loading="_loading"
+              Filter="FilterFunc" Dense="true">
+        <ToolBarContent>
+            <MudTextField @bind-Value="_searchText" Placeholder="Buscar..." Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="mt-0" />
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Código</MudTh>
+            <MudTh>Título</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh>Asignado a</MudTh>
+            <MudTh>Fecha</MudTh>
+            <MudTh>Puntaje</MudTh>
+            <MudTh>Acciones</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd><MudChip T="string" Size="Size.Small" Color="Color.Primary">@context.Code</MudChip></MudTd>
+            <MudTd>@context.Title</MudTd>
+            <MudTd>
+                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">
+                    @context.Status
+                </MudChip>
+            </MudTd>
+            <MudTd>@context.AssignedToName</MudTd>
+            <MudTd>@context.ScheduledDate?.ToString("dd/MM/yyyy")</MudTd>
+            <MudTd>
+                @if (context.Score.HasValue)
+                {
+                    <MudChip T="string" Size="Size.Small"
+                             Color="@(context.Score >= 80 ? Color.Success : context.Score >= 60 ? Color.Warning : Color.Error)">
+                        @context.Score.Value.ToString("F1")%
+                    </MudChip>
+                }
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Primary"
+                               Href="@($"/inspections/{context.Id}")" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Class="pa-4">No se encontraron inspecciones.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private List<InspectionDto> _inspections = [];
+    private bool   _loading    = true;
+    private string _searchText = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try   { _inspections = await Api.GetInspectionsAsync(); }
+        catch { Snackbar.Add("Error cargando inspecciones", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private bool FilterFunc(InspectionDto i) =>
+        string.IsNullOrEmpty(_searchText) ||
+        i.Title.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+        i.Code.Contains(_searchText, StringComparison.OrdinalIgnoreCase);
+
+    private static Color GetStatusColor(string s) => s switch
+    {
+        "Programada"  => Color.Info,
+        "EnProceso"   => Color.Warning,
+        "Finalizada"  => Color.Success,
+        "Cerrada"     => Color.Default,
+        "Cancelada"   => Color.Error,
+        _             => Color.Default
+    };
+}

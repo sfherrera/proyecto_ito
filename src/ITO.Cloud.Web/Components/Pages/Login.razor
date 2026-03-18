@@ -1,0 +1,104 @@
+@page "/login"
+@layout ITO.Cloud.Web.Components.Layout.EmptyLayout
+@inject ApiAuthService AuthService
+@inject NavigationManager Nav
+
+<PageTitle>ITO Cloud — Iniciar Sesión</PageTitle>
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex justify-center align-center" Style="min-height:100vh">
+    <MudCard Elevation="4" Style="width:100%; max-width:420px">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.Center" Class="mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Construction" Color="Color.Primary" Size="Size.Large" />
+                    <MudText Typo="Typo.h5" Color="Color.Primary">ITO Cloud</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Class="text-center mud-text-secondary">
+                    Plataforma de Inspección Técnica de Obras
+                </MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        <MudCardContent>
+            <EditForm Model="_model" OnValidSubmit="HandleLogin">
+                <DataAnnotationsValidator />
+
+                <MudTextField @bind-Value="_model.Email"
+                              Label="Correo electrónico"
+                              InputType="InputType.Email"
+                              Variant="Variant.Outlined"
+                              FullWidth="true"
+                              Class="mb-3"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Email"
+                              Disabled="_loading" />
+
+                <MudTextField @bind-Value="_model.Password"
+                              Label="Contraseña"
+                              InputType="InputType.Password"
+                              Variant="Variant.Outlined"
+                              FullWidth="true"
+                              Class="mb-3"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Lock"
+                              Disabled="_loading" />
+
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <MudAlert Severity="Severity.Error" Class="mb-3">@_error</MudAlert>
+                }
+
+                <MudButton ButtonType="ButtonType.Submit"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           FullWidth="true"
+                           Size="Size.Large"
+                           Disabled="_loading">
+                    @if (_loading)
+                    {
+                        <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
+                        <span>Ingresando...</span>
+                    }
+                    else
+                    {
+                        <span>Iniciar Sesión</span>
+                    }
+                </MudButton>
+            </EditForm>
+        </MudCardContent>
+    </MudCard>
+</MudContainer>
+
+@code {
+    [SupplyParameterFromQuery] private string? ReturnUrl { get; set; }
+
+    private readonly LoginModel _model = new();
+    private bool   _loading;
+    private string? _error;
+
+    private async Task HandleLogin()
+    {
+        _loading = true;
+        _error   = null;
+
+        var (success, error) = await AuthService.LoginAsync(_model.Email, _model.Password);
+
+        if (success)
+            Nav.NavigateTo(string.IsNullOrEmpty(ReturnUrl) ? "/" : Uri.UnescapeDataString(ReturnUrl), forceLoad: true);
+        else
+        {
+            _error   = error;
+            _loading = false;
+        }
+    }
+
+    private class LoginModel
+    {
+        public string Email    { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+}

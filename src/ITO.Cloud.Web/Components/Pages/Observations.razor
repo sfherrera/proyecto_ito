@@ -1,0 +1,103 @@
+@page "/observations"
+@attribute [Authorize]
+
+@inject ItoApiService Api
+@inject ISnackbar Snackbar
+
+<PageTitle>Observaciones — ITO Cloud</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">
+        <MudIcon Icon="@Icons.Material.Filled.Warning" Class="mr-2" />Observaciones / NC
+    </MudText>
+    <MudSpacer />
+    <MudButton Variant="Variant.Filled" Color="Color.Warning"
+               StartIcon="@Icons.Material.Filled.Add"
+               Href="/observations/new">
+        Nueva Observación
+    </MudButton>
+</MudStack>
+
+<MudPaper Elevation="2">
+    <MudTable Items="_observations" Hover="true" Striped="true" Loading="_loading"
+              Filter="FilterFunc" Dense="true">
+        <ToolBarContent>
+            <MudTextField @bind-Value="_searchText" Placeholder="Buscar..." Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="mt-0" />
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Código</MudTh>
+            <MudTh>Título</MudTh>
+            <MudTh>Severidad</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh>Vencimiento</MudTh>
+            <MudTh>Acciones</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd><MudChip T="string" Size="Size.Small" Color="Color.Warning">@context.Code</MudChip></MudTd>
+            <MudTd>@context.Title</MudTd>
+            <MudTd>
+                <MudChip T="string" Size="Size.Small" Color="@GetSeverityColor(context.Severity)">
+                    @context.Severity
+                </MudChip>
+            </MudTd>
+            <MudTd>
+                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">
+                    @context.Status
+                </MudChip>
+            </MudTd>
+            <MudTd>
+                @if (context.DueDate.HasValue)
+                {
+                    <MudText Color="@(context.IsOverdue ? Color.Error : Color.Default)">
+                        @context.DueDate.Value.ToString("dd/MM/yyyy")
+                        @if (context.IsOverdue) { <MudIcon Icon="@Icons.Material.Filled.AccessTime" Size="Size.Small" /> }
+                    </MudText>
+                }
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Primary"
+                               Href="@($"/observations/{context.Id}")" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Class="pa-4">No se encontraron observaciones.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private List<ObservationDto> _observations = [];
+    private bool   _loading    = true;
+    private string _searchText = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try   { _observations = await Api.GetObservationsAsync(); }
+        catch { Snackbar.Add("Error cargando observaciones", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private bool FilterFunc(ObservationDto o) =>
+        string.IsNullOrEmpty(_searchText) ||
+        o.Title.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+        o.Code.Contains(_searchText, StringComparison.OrdinalIgnoreCase);
+
+    private static Color GetSeverityColor(string s) => s switch
+    {
+        "Critica" or "Critical" => Color.Error,
+        "Alta"                  => Color.Warning,
+        "Media"                 => Color.Info,
+        _                       => Color.Default
+    };
+
+    private static Color GetStatusColor(string s) => s switch
+    {
+        "Abierta"    => Color.Warning,
+        "Asignada"   => Color.Info,
+        "EnRevision" => Color.Secondary,
+        "Cerrada"    => Color.Success,
+        "Rechazada"  => Color.Error,
+        _            => Color.Default
+    };
+}

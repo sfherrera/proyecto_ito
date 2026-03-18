@@ -1,0 +1,6 @@
+@ITO.Cloud.API_HostAddress = http://localhost:5095
+
+GET {{ITO.Cloud.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

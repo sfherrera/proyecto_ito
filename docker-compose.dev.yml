@@ -1,0 +1,28 @@
+version: "3.9"
+
+# Sobreescribe docker-compose.yml para desarrollo local.
+# Uso: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# Solo levanta las dependencias (postgres, redis, minio).
+# La API y Web se ejecutan localmente con: dotnet run
+
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  minio:
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  # La API y Web se corren localmente, no con docker en dev
+  api:
+    profiles: ["prod"]
+
+  web:
+    profiles: ["prod"]

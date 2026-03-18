@@ -1,0 +1,131 @@
+version: "3.9"
+
+# ─── Redes ───────────────────────────────────────────────────────────────────
+networks:
+  ito-net:
+    driver: bridge
+
+# ─── Volúmenes persistentes ───────────────────────────────────────────────────
+volumes:
+  postgres-data:
+  minio-data:
+  redis-data:
+
+# ─── Servicios ────────────────────────────────────────────────────────────────
+services:
+
+  # ── PostgreSQL 16 ──────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: ito-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: joanmiro
+      POSTGRES_DB:       ito_cloud
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docs/sql/001_create_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ito_cloud"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ito-net
+
+  # ── Redis (caché / SignalR backplane) ──────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: ito-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - ito-net
+
+  # ── MinIO (almacenamiento S3-compatible) ───────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: ito-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER:     minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    ports:
+      - "9000:9000"   # API S3
+      - "9001:9001"   # Consola web
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - ito-net
+
+  # ── ITO Cloud API ──────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: src/ITO.Cloud.API/Dockerfile
+    container_name: ito-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: >-
+        Host=postgres;Port=5432;Database=ito_cloud;Username=postgres;Password=joanmiro
+      JwtSettings__SecretKey:          ${JWT_SECRET:-SuperSecretKeyParaITOCloud2025XYZ!}
+      JwtSettings__Issuer:             ITO.Cloud.API
+      JwtSettings__Audience:           ITO.Cloud.Clients
+      JwtSettings__ExpirationMinutes:  "480"
+      MinIOSettings__Endpoint:         minio:9000
+      MinIOSettings__AccessKey:        minioadmin
+      MinIOSettings__SecretKey:        minioadmin123
+      MinIOSettings__BucketName:       ito-cloud-files
+      MinIOSettings__UseSSL:           "false"
+      Redis__ConnectionString:         redis:6379
+    ports:
+      - "7200:8080"
+    networks:
+      - ito-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+
+  # ── ITO Cloud Web (Blazor Server) ─────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: src/ITO.Cloud.Web/Dockerfile
+    container_name: ito-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ApiSettings__BaseUrl:   http://api:8080
+    ports:
+      - "7001:8081"
+    networks:
+      - ito-net

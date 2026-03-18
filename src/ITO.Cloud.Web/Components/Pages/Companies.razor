@@ -1,0 +1,152 @@
+@page "/companies"
+@attribute [Authorize]
+
+@inject ItoApiService Api
+@inject ISnackbar Snackbar
+
+<PageTitle>Empresas — ITO Cloud</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">
+        <MudIcon Icon="@Icons.Material.Filled.Business" Class="mr-2" />Empresas
+    </MudText>
+    <MudSpacer />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="OpenCreateDialog">
+        Nueva Empresa
+    </MudButton>
+</MudStack>
+
+<MudPaper Elevation="2">
+    <MudTable Items="_companies" Hover="true" Striped="true" Loading="_loading"
+              Filter="FilterFunc" Dense="true">
+        <ToolBarContent>
+            <MudTextField @bind-Value="_searchText" Placeholder="Buscar..." Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium"
+                          Class="mt-0" Immediate="true" />
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Nombre</MudTh>
+            <MudTh>RUT</MudTh>
+            <MudTh>Tipo</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh>Acciones</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@context.Rut</MudTd>
+            <MudTd>@context.CompanyType</MudTd>
+            <MudTd>
+                <MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Default)" Size="Size.Small">
+                    @(context.IsActive ? "Activa" : "Inactiva")
+                </MudChip>
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                               OnClick="() => DeleteCompany(context.Id)" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Class="pa-4">No se encontraron empresas.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+<!-- Dialog crear empresa -->
+<MudDialog @bind-Visible="_showDialog">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Nueva Empresa</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_form.Name" Label="Nombre *" Variant="Variant.Outlined" FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_form.Rut" Label="RUT" Variant="Variant.Outlined" FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect @bind-Value="_form.CompanyType" Label="Tipo *" Variant="Variant.Outlined" FullWidth="true">
+                    <MudSelectItem Value="@("Contratista")">Contratista</MudSelectItem>
+                    <MudSelectItem Value="@("Mandante")">Mandante</MudSelectItem>
+                    <MudSelectItem Value="@("Inspeccion")">Inspección</MudSelectItem>
+                    <MudSelectItem Value="@("Subcontratista")">Subcontratista</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_form.Email" Label="Email" Variant="Variant.Outlined" FullWidth="true" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _showDialog = false">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveCompany" Disabled="_saving">
+            @(_saving ? "Guardando..." : "Guardar")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<CompanyDto> _companies = [];
+    private bool   _loading    = true;
+    private bool   _showDialog = false;
+    private bool   _saving     = false;
+    private string _searchText = string.Empty;
+    private CompanyForm _form  = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCompanies();
+    }
+
+    private async Task LoadCompanies()
+    {
+        _loading = true;
+        try   { _companies = await Api.GetCompaniesAsync(); }
+        catch { Snackbar.Add("Error cargando empresas", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private bool FilterFunc(CompanyDto c) =>
+        string.IsNullOrEmpty(_searchText) ||
+        c.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+        (c.Rut?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false);
+
+    private void OpenCreateDialog()
+    {
+        _form = new();
+        _showDialog = true;
+    }
+
+    private async Task SaveCompany()
+    {
+        if (string.IsNullOrWhiteSpace(_form.Name)) return;
+        _saving = true;
+        var ok = await Api.CreateCompanyAsync(new
+        {
+            _form.Name, _form.Rut, _form.Email,
+            BusinessName  = _form.Name,
+            CompanyType   = _form.CompanyType,
+        });
+        _saving = false;
+        _showDialog = false;
+        if (ok) { Snackbar.Add("Empresa creada", Severity.Success); await LoadCompanies(); }
+        else    Snackbar.Add("Error al crear empresa", Severity.Error);
+    }
+
+    private async Task DeleteCompany(Guid id)
+    {
+        var ok = await Api.DeleteCompanyAsync(id);
+        if (ok) { Snackbar.Add("Empresa eliminada", Severity.Success); await LoadCompanies(); }
+        else    Snackbar.Add("Error al eliminar", Severity.Error);
+    }
+
+    private class CompanyForm
+    {
+        public string Name        { get; set; } = string.Empty;
+        public string? Rut        { get; set; }
+        public string? Email      { get; set; }
+        public string CompanyType { get; set; } = "Contratista";
+    }
+}

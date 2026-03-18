@@ -1,0 +1,155 @@
+@page "/"
+@attribute [Authorize]
+
+@inject ItoApiService Api
+
+<PageTitle>Dashboard — ITO Cloud</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Dashboard" Class="mr-2" />Dashboard
+</MudText>
+
+@if (_loading)
+{
+    <MudGrid>
+        @for (int i = 0; i < 6; i++)
+        {
+            <MudItem xs="12" sm="6" md="4">
+                <MudSkeleton Height="120px" />
+            </MudItem>
+        }
+    </MudGrid>
+}
+else if (_data != null)
+{
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Primary" Size="Size.Large" />
+                    <div>
+                        <MudText Typo="Typo.h4">@_data.TotalInspections</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Total Inspecciones</MudText>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center">
+                    <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Info" Size="Size.Large" />
+                    <div>
+                        <MudText Typo="Typo.h4">@_data.InspectionsThisMonth</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Este Mes</MudText>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center">
+                    <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Large" />
+                    <div>
+                        <MudText Typo="Typo.h4">@_data.OpenObservations</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Observaciones Abiertas</MudText>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center">
+                    <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Large" />
+                    <div>
+                        <MudText Typo="Typo.h4">@_data.CriticalObservations</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Críticas</MudText>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center">
+                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Color="Color.Error" Size="Size.Large" />
+                    <div>
+                        <MudText Typo="Typo.h4">@_data.OverdueObservations</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Vencidas</MudText>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center">
+                    <MudIcon Icon="@Icons.Material.Filled.Verified" Color="Color.Success" Size="Size.Large" />
+                    <div>
+                        <MudText Typo="Typo.h4">@_data.ComplianceRate.ToString("F1")%</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Tasa Cumplimiento</MudText>
+                    </div>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid Class="mt-4">
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.subtitle1" Class="mb-3">Accesos Rápidos</MudText>
+                <MudStack>
+                    <MudButton Href="/inspections" Variant="Variant.Outlined" Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.Add" FullWidth="true">
+                        Nueva Inspección
+                    </MudButton>
+                    <MudButton Href="/observations" Variant="Variant.Outlined" Color="Color.Warning"
+                               StartIcon="@Icons.Material.Filled.Warning" FullWidth="true">
+                        Ver Observaciones
+                    </MudButton>
+                    <MudButton Href="/projects" Variant="Variant.Outlined" Color="Color.Secondary"
+                               StartIcon="@Icons.Material.Filled.AccountTree" FullWidth="true">
+                        Ver Proyectos
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.subtitle1" Class="mb-3">Estado del Sistema</MudText>
+                <MudList T="string" Dense="true">
+                    <MudListItem Icon="@Icons.Material.Filled.Circle" IconColor="Color.Success">
+                        API: Conectada
+                    </MudListItem>
+                    <MudListItem Icon="@Icons.Material.Filled.Circle" IconColor="Color.Success">
+                        Base de datos: PostgreSQL
+                    </MudListItem>
+                    <MudListItem Icon="@Icons.Material.Filled.Circle" IconColor="Color.Info">
+                        Última actualización: @DateTime.Now.ToString("HH:mm")
+                    </MudListItem>
+                </MudList>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+else
+{
+    <MudAlert Severity="Severity.Warning">
+        No se pudo cargar el dashboard. Verifique que la API esté disponible.
+    </MudAlert>
+}
+
+@code {
+    private DashboardDto? _data;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try   { _data = await Api.GetDashboardAsync(); }
+        catch { /* API no disponible */ }
+        finally { _loading = false; }
+    }
+}

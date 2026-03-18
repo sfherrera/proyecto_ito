@@ -1,0 +1,82 @@
+@page "/projects"
+@attribute [Authorize]
+
+@inject ItoApiService Api
+@inject ISnackbar Snackbar
+
+<PageTitle>Proyectos — ITO Cloud</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">
+        <MudIcon Icon="@Icons.Material.Filled.AccountTree" Class="mr-2" />Proyectos
+    </MudText>
+    <MudSpacer />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               Href="/projects/new">
+        Nuevo Proyecto
+    </MudButton>
+</MudStack>
+
+<MudPaper Elevation="2">
+    <MudTable Items="_projects" Hover="true" Striped="true" Loading="_loading"
+              Filter="FilterFunc" Dense="true">
+        <ToolBarContent>
+            <MudTextField @bind-Value="_searchText" Placeholder="Buscar..." Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium"
+                          Class="mt-0" Immediate="true" />
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Código</MudTh>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Empresa</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh>Inicio</MudTh>
+            <MudTh>Acciones</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd><MudChip T="string" Size="Size.Small" Color="Color.Primary">@context.Code</MudChip></MudTd>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@context.CompanyName</MudTd>
+            <MudTd>
+                <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(context.Status)">
+                    @context.Status
+                </MudChip>
+            </MudTd>
+            <MudTd>@context.StartDate?.ToString("dd/MM/yyyy")</MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Primary"
+                               Href="@($"/projects/{context.Id}")" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Class="pa-4">No se encontraron proyectos.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private List<ProjectDto> _projects = [];
+    private bool   _loading    = true;
+    private string _searchText = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try   { _projects = await Api.GetProjectsAsync(); }
+        catch { Snackbar.Add("Error cargando proyectos", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private bool FilterFunc(ProjectDto p) =>
+        string.IsNullOrEmpty(_searchText) ||
+        p.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+        p.Code.Contains(_searchText, StringComparison.OrdinalIgnoreCase);
+
+    private static Color GetStatusColor(string? s) => s switch
+    {
+        "Activo"     => Color.Success,
+        "Paralizado" => Color.Warning,
+        "Terminado"  => Color.Default,
+        _            => Color.Info
+    };
+}
