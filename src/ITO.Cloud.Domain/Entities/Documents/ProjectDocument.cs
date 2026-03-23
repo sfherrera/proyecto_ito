@@ -1,4 +1,5 @@
 using ITO.Cloud.Domain.Common;
+using ITO.Cloud.Domain.Entities.Projects;
 
 namespace ITO.Cloud.Domain.Entities.Documents;
 
@@ -16,4 +17,7 @@ public class ProjectDocument : TenantEntity
     public string? MimeType { get; set; }
     public string? Version { get; set; }
     public bool IsActive { get; set; } = true;
+
+    // Navegación
+    public Project Project { get; set; } = null!;
 }

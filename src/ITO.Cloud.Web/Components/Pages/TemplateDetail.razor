@@ -1,0 +1,600 @@
+@page "/templates/{Id:guid}"
+@attribute [Authorize(Roles = "SuperAdmin,AdminTenant,Director,Supervisor,Inspector")]
+@implements IDisposable
+
+@using ITO.Cloud.Web.Auth
+@inject ItoApiService Api
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+@inject IDialogService DialogService
+
+<PageTitle>@L["templates.title"] — ITO Cloud</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_template == null)
+{
+    <MudAlert Severity="Severity.Error">@L["templates.not_found"]</MudAlert>
+}
+else
+{
+    <!-- Encabezado -->
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick="@(() => Nav.NavigateTo("/templates"))" />
+        @if (!_editing)
+        {
+            <MudText Typo="Typo.h5">@_template.Name</MudText>
+        }
+        else
+        {
+            <MudTextField @bind-Value="_editName" Label="@L["common.name"]" Variant="Variant.Outlined" Style="max-width:400px" />
+        }
+        <MudSpacer />
+        <HelpButton Module="template-detail" />
+        <MudChip T="string" Color="@GetStatusColor(_template.Status)">@_template.Status</MudChip>
+        <AuthorizeView Roles="SuperAdmin,AdminTenant,Director">
+            @if (!_editing)
+            {
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Edit"
+                           OnClick="StartEditing">@L["common.edit"]</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Error"
+                           StartIcon="@Icons.Material.Filled.Delete"
+                           OnClick="DeleteTemplate">@L["common.delete"]</MudButton>
+            }
+            else
+            {
+                <MudButton Variant="Variant.Outlined" OnClick="CancelEditing">@L["common.cancel"]</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           OnClick="SaveEditing" Disabled="_saving">
+                    @(_saving ? L["common.saving"] : L["common.save"])
+                </MudButton>
+            }
+        </AuthorizeView>
+    </MudStack>
+
+    <!-- Info general -->
+    <MudPaper Elevation="2" Class="pa-4 mb-4">
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@L["common.description"]</MudText>
+                @if (_editing)
+                {
+                    <MudTextField @bind-Value="_editDescription" Variant="Variant.Outlined" Lines="2" FullWidth="true" />
+                }
+                else
+                {
+                    <MudText>@(_template.Description ?? L["templates.no_description"])</MudText>
+                }
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@L["common.type"]</MudText>
+                <MudText>@FormatType(_template.TemplateType)</MudText>
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@L["common.version"]</MudText>
+                <MudText>v@(_template.CurrentVersion)</MudText>
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@L["templates.passing_score"]</MudText>
+                @if (_editing)
+                {
+                    <MudNumericField @bind-Value="_editPassingScore" Variant="Variant.Outlined" Min="0" Max="100" />
+                }
+                else
+                {
+                    <MudText>@(_template.PassingScore.HasValue ? $"{_template.PassingScore}%" : "N/A")</MudText>
+                }
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@L["templates.geolocation"]</MudText>
+                <MudText>@(_template.RequireGeolocation ? L["common.required"] : L["common.optional"])</MudText>
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@L["templates.signature"]</MudText>
+                <MudText>@(_template.RequireSignature ? L["common.required"] : L["common.no"])</MudText>
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@L["templates.partial_save"]</MudText>
+                <MudText>@(_template.AllowPartialSave ? L["common.yes"] : L["common.no"])</MudText>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <!-- Secciones y preguntas -->
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.List" Class="mr-1" />
+            @L["templates.sections"] (@(_template.Sections?.Count ?? 0))
+        </MudText>
+        <MudSpacer />
+        <AuthorizeView Roles="SuperAdmin,AdminTenant,Director">
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add" Size="Size.Small"
+                       OnClick="OpenAddSectionDialog">
+                @L["templates.add_section"]
+            </MudButton>
+        </AuthorizeView>
+    </MudStack>
+
+    @if (_template.Sections != null)
+    {
+        var secNum = 0;
+        @foreach (var sec in _template.Sections.OrderBy(s => s.OrderIndex))
+        {
+            secNum++;
+            <MudExpansionPanels MultiExpansion="true" Class="mb-3">
+                <MudExpansionPanel @bind-IsExpanded="@_expanded[sec.Id]">
+                    <TitleContent>
+                        <MudStack Row="true" AlignItems="AlignItems.Center">
+                            <MudAvatar Color="Color.Primary" Size="Size.Small">@secNum</MudAvatar>
+                            <MudText Typo="Typo.subtitle1"><b>@sec.Title</b></MudText>
+                            <MudSpacer />
+                            @if (sec.IsRequired)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Warning">@L["templates.required_section"]</MudChip>
+                            }
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                                @sec.Questions.Count @L["templates.questions_count"] | @L["common.weight"]: @sec.Weight.ToString("F1")
+                            </MudChip>
+                            <AuthorizeView Roles="SuperAdmin,AdminTenant,Director">
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                               Color="Color.Error" Title="@L["common.delete"]"
+                                               OnClick="@(() => DeleteSection(sec.Id))"
+                                               OnClickStopPropagation="true" />
+                            </AuthorizeView>
+                        </MudStack>
+                    </TitleContent>
+                    <ChildContent>
+                        @if (!string.IsNullOrEmpty(sec.Description))
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">@sec.Description</MudText>
+                        }
+
+                        <AuthorizeView Roles="SuperAdmin,AdminTenant,Director">
+                            <MudButton Variant="Variant.Text" Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Add" Size="Size.Small" Class="mb-2"
+                                       OnClick="@(() => OpenAddQuestionDialog(sec.Id))">
+                                @L["templates.add_question"]
+                            </MudButton>
+                        </AuthorizeView>
+
+                        <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                            <thead>
+                                <tr>
+                                    <th style="width:40px">#</th>
+                                    <th>@L["templates.question"]</th>
+                                    <th style="width:130px">@L["common.type"]</th>
+                                    <th style="width:70px">@L["common.weight"]</th>
+                                    <th style="width:100px">@L["common.flags"]</th>
+                                    <th style="width:50px"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var q in sec.Questions.OrderBy(q => q.OrderIndex))
+                                {
+                                    <tr>
+                                        <td>@q.OrderIndex</td>
+                                        <td>
+                                            @q.QuestionText
+                                            @if (!string.IsNullOrEmpty(q.Description))
+                                            {
+                                                <br/><MudText Typo="Typo.caption" Color="Color.Secondary">@q.Description</MudText>
+                                            }
+                                            @if (q.Options != null && q.Options.Count > 0)
+                                            {
+                                                <div class="mt-1">
+                                                    @foreach (var opt in q.Options)
+                                                    {
+                                                        <MudChip T="string" Size="Size.Small" Class="mr-1"
+                                                                 Color="@(opt.IsFailureOption ? Color.Error : Color.Default)">
+                                                            @opt.Label (@opt.Score.ToString("F1")pts)
+                                                        </MudChip>
+                                                    }
+                                                </div>
+                                            }
+                                        </td>
+                                        <td>
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Info">
+                                                @FormatQuestionType(q.QuestionType)
+                                            </MudChip>
+                                        </td>
+                                        <td>@q.Weight.ToString("F1")</td>
+                                        <td>
+                                            @if (q.IsCritical)
+                                            {
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Error">@L["templates.is_critical"]</MudChip>
+                                            }
+                                            @if (q.IsRequired)
+                                            {
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Warning">@L["templates.is_required"]</MudChip>
+                                            }
+                                            @if (q.MinPhotos > 0)
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Filled.PhotoCamera" Size="Size.Small" Title="@($"Min {q.MinPhotos} foto(s)")" />
+                                            }
+                                        </td>
+                                        <td>
+                                            <AuthorizeView Roles="SuperAdmin,AdminTenant,Director">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                                               Color="Color.Error" Title="@L["common.delete"]"
+                                                               OnClick="@(() => DeleteQuestion(sec.Id, q.Id))" />
+                                            </AuthorizeView>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </MudSimpleTable>
+                    </ChildContent>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+        }
+    }
+}
+
+<!-- Add Section Dialog -->
+<MudDialog @bind-Visible="_showSectionDialog" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@L["templates.add_section"]</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_sectionForm.Title" Label="@(L["common.title"] + " *")" Variant="Variant.Outlined" FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_sectionForm.Description" Label="@L["common.description"]" Variant="Variant.Outlined"
+                              FullWidth="true" Lines="2" />
+            </MudItem>
+            <MudItem xs="6">
+                <MudNumericField @bind-Value="_sectionForm.OrderIndex" Label="@L["common.order"]" Variant="Variant.Outlined" Min="1" />
+            </MudItem>
+            <MudItem xs="6">
+                <MudNumericField @bind-Value="_sectionForm.Weight" Label="@L["common.weight"]" Variant="Variant.Outlined"
+                                 Min="0.0m" Step="0.1m" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudSwitch @bind-Value="_sectionForm.IsRequired" Label="@L["templates.required_section"]" Color="Color.Primary" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _showSectionDialog = false">@L["common.cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveSection"
+                   Disabled="_savingSection">
+            @(_savingSection ? L["common.saving"] : L["common.add"])
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- Add Question Dialog -->
+<MudDialog @bind-Visible="_showQuestionDialog" Options="new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@L["templates.add_question"]</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_questionForm.QuestionText" Label="@L["templates.question_text"]"
+                              Variant="Variant.Outlined" FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect @bind-Value="_questionForm.QuestionType" Label="@(L["common.type"] + " *")" Variant="Variant.Outlined" FullWidth="true">
+                    <MudSelectItem Value="@("YesNo")">@L["templates.question_type_yes_no"]</MudSelectItem>
+                    <MudSelectItem Value="@("MultipleChoice")">@L["templates.question_type_multiple"]</MudSelectItem>
+                    <MudSelectItem Value="@("Text")">@L["templates.question_type_text"]</MudSelectItem>
+                    <MudSelectItem Value="@("Numeric")">@L["templates.question_type_numeric"]</MudSelectItem>
+                    <MudSelectItem Value="@("Date")">@L["templates.question_type_date"]</MudSelectItem>
+                    <MudSelectItem Value="@("Photo")">@L["templates.question_type_photo"]</MudSelectItem>
+                    <MudSelectItem Value="@("Signature")">@L["templates.question_type_signature"]</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudNumericField @bind-Value="_questionForm.OrderIndex" Label="@L["common.order"]" Variant="Variant.Outlined" Min="1" />
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudNumericField @bind-Value="_questionForm.Weight" Label="@L["common.weight"]" Variant="Variant.Outlined"
+                                 Min="0.0m" Step="0.1m" />
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudSwitch @bind-Value="_questionForm.IsRequired" Label="@L["templates.is_required"]" Color="Color.Primary" />
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudSwitch @bind-Value="_questionForm.IsCritical" Label="@L["templates.is_critical"]" Color="Color.Error" />
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudNumericField @bind-Value="_questionForm.MinPhotos" Label="@L["templates.min_photos"]" Variant="Variant.Outlined" Min="0" />
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudNumericField @bind-Value="_questionForm.MaxPhotos" Label="@L["templates.max_photos"]" Variant="Variant.Outlined" Min="0" />
+            </MudItem>
+
+            @if (_questionForm.QuestionType == "MultipleChoice")
+            {
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">@L["templates.options"]</MudText>
+                    @for (var i = 0; i < _questionForm.Options.Count; i++)
+                    {
+                        var idx = i;
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-1">
+                            <MudTextField @bind-Value="_questionForm.Options[idx].Label" Label="@L["templates.option_label"]"
+                                          Variant="Variant.Outlined" Style="flex:1" />
+                            <MudNumericField @bind-Value="_questionForm.Options[idx].Score" Label="@L["templates.option_score"]"
+                                             Variant="Variant.Outlined" Style="width:100px" Min="0.0m" Step="0.5m" />
+                            <MudSwitch @bind-Value="_questionForm.Options[idx].IsFailureOption"
+                                       Label="@L["templates.option_failure"]" Color="Color.Error" />
+                            <MudIconButton Icon="@Icons.Material.Filled.RemoveCircle" Color="Color.Error" Size="Size.Small"
+                                           OnClick="@(() => _questionForm.Options.RemoveAt(idx))" />
+                        </MudStack>
+                    }
+                    <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="@(() => _questionForm.Options.Add(new OptionForm()))">
+                        @L["templates.add_option"]
+                    </MudButton>
+                </MudItem>
+            }
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _showQuestionDialog = false">@L["common.cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveQuestion"
+                   Disabled="_savingQuestion">
+            @(_savingQuestion ? L["common.saving"] : L["common.add"])
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private TemplateDetailDto? _template;
+    private bool _loading = true;
+    private Dictionary<Guid, bool> _expanded = new();
+
+    // ── Editing state ────────────────────────────────────────────────────────
+    private bool _editing = false;
+    private bool _saving  = false;
+    private string _editName = string.Empty;
+    private string? _editDescription;
+    private decimal? _editPassingScore;
+
+    // ── Section dialog ───────────────────────────────────────────────────────
+    private bool _showSectionDialog = false;
+    private bool _savingSection     = false;
+    private SectionForm _sectionForm = new();
+
+    // ── Question dialog ──────────────────────────────────────────────────────
+    private bool _showQuestionDialog = false;
+    private bool _savingQuestion     = false;
+    private Guid _questionSectionId;
+    private QuestionForm _questionForm = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        L.OnChange += StateHasChanged;
+        await LoadTemplate();
+    }
+
+    public void Dispose()
+    {
+        L.OnChange -= StateHasChanged;
+    }
+
+    private async Task LoadTemplate()
+    {
+        _loading = true;
+        try
+        {
+            _template = await Api.GetTemplateByIdAsync(Id);
+            if (_template?.Sections != null)
+                foreach (var s in _template.Sections)
+                    _expanded[s.Id] = true;
+        }
+        catch { Snackbar.Add(L["templates.error_loading"], Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    // ── Inline editing ───────────────────────────────────────────────────────
+    private void StartEditing()
+    {
+        _editName         = _template!.Name;
+        _editDescription  = _template.Description;
+        _editPassingScore = _template.PassingScore;
+        _editing = true;
+    }
+
+    private void CancelEditing() => _editing = false;
+
+    private async Task SaveEditing()
+    {
+        if (string.IsNullOrWhiteSpace(_editName))
+        {
+            Snackbar.Add(L["templates.name_required"], Severity.Warning);
+            return;
+        }
+        _saving = true;
+        var ok = await Api.UpdateTemplateAsync(Id, new
+        {
+            Name         = _editName,
+            Description  = _editDescription,
+            PassingScore = _editPassingScore
+        });
+        _saving = false;
+        if (ok)
+        {
+            Snackbar.Add(L["templates.updated"], Severity.Success);
+            _editing = false;
+            await LoadTemplate();
+        }
+        else Snackbar.Add(L["templates.error_updating"], Severity.Error);
+    }
+
+    private async Task DeleteTemplate()
+    {
+        var ok = await Api.DeleteTemplateAsync(Id);
+        if (ok) { Snackbar.Add(L["templates.deleted"], Severity.Success); Nav.NavigateTo("/templates"); }
+        else    Snackbar.Add(L["templates.error_deleting"], Severity.Error);
+    }
+
+    // ── Add section ──────────────────────────────────────────────────────────
+    private void OpenAddSectionDialog()
+    {
+        var nextOrder = (_template?.Sections?.Count ?? 0) + 1;
+        _sectionForm = new SectionForm { OrderIndex = nextOrder };
+        _showSectionDialog = true;
+    }
+
+    private async Task SaveSection()
+    {
+        if (string.IsNullOrWhiteSpace(_sectionForm.Title))
+        {
+            Snackbar.Add(L["templates.title_required"], Severity.Warning);
+            return;
+        }
+        _savingSection = true;
+        var result = await Api.AddTemplateSectionAsync(Id, new
+        {
+            _sectionForm.Title,
+            _sectionForm.Description,
+            _sectionForm.OrderIndex,
+            _sectionForm.Weight,
+            _sectionForm.IsRequired
+        });
+        _savingSection = false;
+        if (result != null)
+        {
+            Snackbar.Add(L["templates.section_added"], Severity.Success);
+            _showSectionDialog = false;
+            await LoadTemplate();
+        }
+        else Snackbar.Add(L["templates.error_adding_section"], Severity.Error);
+    }
+
+    private async Task DeleteSection(Guid sectionId)
+    {
+        var ok = await Api.DeleteTemplateSectionAsync(Id, sectionId);
+        if (ok) { Snackbar.Add(L["templates.section_deleted"], Severity.Success); await LoadTemplate(); }
+        else    Snackbar.Add(L["templates.error_deleting_section"], Severity.Error);
+    }
+
+    // ── Add question ─────────────────────────────────────────────────────────
+    private void OpenAddQuestionDialog(Guid sectionId)
+    {
+        _questionSectionId = sectionId;
+        var sec = _template?.Sections?.FirstOrDefault(s => s.Id == sectionId);
+        var nextOrder = (sec?.Questions?.Count ?? 0) + 1;
+        _questionForm = new QuestionForm { OrderIndex = nextOrder };
+        _showQuestionDialog = true;
+    }
+
+    private async Task SaveQuestion()
+    {
+        if (string.IsNullOrWhiteSpace(_questionForm.QuestionText))
+        {
+            Snackbar.Add(L["templates.question_text_required"], Severity.Warning);
+            return;
+        }
+        _savingQuestion = true;
+
+        object? options = _questionForm.QuestionType == "MultipleChoice" && _questionForm.Options.Count > 0
+            ? _questionForm.Options.Select(o => new { o.Label, Value = o.Label, o.IsFailureOption, o.Score }).ToList()
+            : null;
+
+        var result = await Api.AddTemplateQuestionAsync(Id, _questionSectionId, new
+        {
+            _questionForm.QuestionText,
+            _questionForm.QuestionType,
+            _questionForm.OrderIndex,
+            _questionForm.IsRequired,
+            _questionForm.IsCritical,
+            _questionForm.Weight,
+            _questionForm.MinPhotos,
+            _questionForm.MaxPhotos,
+            Options = options
+        });
+        _savingQuestion = false;
+        if (result != null)
+        {
+            Snackbar.Add(L["templates.question_added"], Severity.Success);
+            _showQuestionDialog = false;
+            await LoadTemplate();
+        }
+        else Snackbar.Add(L["templates.error_adding_question"], Severity.Error);
+    }
+
+    private async Task DeleteQuestion(Guid sectionId, Guid questionId)
+    {
+        var ok = await Api.DeleteTemplateQuestionAsync(Id, sectionId, questionId);
+        if (ok) { Snackbar.Add(L["templates.question_deleted"], Severity.Success); await LoadTemplate(); }
+        else    Snackbar.Add(L["templates.error_deleting_question"], Severity.Error);
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    private string FormatType(string? type) => type switch
+    {
+        "obra_gruesa"   => L["templates.type_obra_gruesa"],
+        "terminaciones" => L["templates.type_terminaciones"],
+        "recepcion"     => L["templates.type_recepcion"],
+        "seguridad"     => L["templates.type_seguridad"],
+        "instalaciones" => L["templates.type_instalaciones"],
+        _               => type ?? L["templates.type_general"]
+    };
+
+    private string FormatQuestionType(string type) => type switch
+    {
+        "YesNo"          => L["templates.question_type_yes_no"],
+        "MultipleChoice" => L["templates.question_type_selection"],
+        "Text"           => L["templates.question_type_text"],
+        "Numeric"        => L["templates.question_type_numeric"],
+        "Date"           => L["templates.question_type_date"],
+        "Photo"          => L["templates.question_type_photo"],
+        "Video"          => L["templates.question_type_video"],
+        "Audio"          => L["templates.question_type_audio"],
+        "Signature"      => L["templates.question_type_signature"],
+        "Geolocation"    => L["templates.question_type_geolocation"],
+        "File"           => L["templates.question_type_file"],
+        _                => type
+    };
+
+    private static Color GetStatusColor(string s) => s switch
+    {
+        "Activa"    => Color.Success,
+        "Borrador"  => Color.Warning,
+        "Inactiva"  => Color.Default,
+        "Archivada" => Color.Error,
+        _           => Color.Default
+    };
+
+    // ── Form models ─────────────────────────────────────────────────────────
+    private class SectionForm
+    {
+        public string  Title       { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public int     OrderIndex  { get; set; } = 1;
+        public decimal Weight      { get; set; } = 1.0m;
+        public bool    IsRequired  { get; set; } = true;
+    }
+
+    private class QuestionForm
+    {
+        public string  QuestionText { get; set; } = string.Empty;
+        public string  QuestionType { get; set; } = "YesNo";
+        public int     OrderIndex   { get; set; } = 1;
+        public bool    IsRequired   { get; set; } = true;
+        public bool    IsCritical   { get; set; } = false;
+        public decimal Weight       { get; set; } = 1.0m;
+        public int     MinPhotos    { get; set; } = 0;
+        public int     MaxPhotos    { get; set; } = 10;
+        public List<OptionForm> Options { get; set; } = [];
+    }
+
+    private class OptionForm
+    {
+        public string  Label           { get; set; } = string.Empty;
+        public bool    IsFailureOption { get; set; } = false;
+        public decimal Score           { get; set; } = 1.0m;
+    }
+}

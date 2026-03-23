@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.ITOCloudInspector" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- The Compose theme handles all Material3 theming at runtime.
+             This XML theme is only used for the splash/launch window. -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+</resources>

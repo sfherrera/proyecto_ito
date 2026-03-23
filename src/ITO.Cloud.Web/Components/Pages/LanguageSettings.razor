@@ -1,0 +1,73 @@
+@page "/settings/language"
+@attribute [Authorize]
+
+@inject IAppLocalizer L
+@inject ISnackbar Snackbar
+
+<PageTitle>@L["language.title"] — ITO Cloud</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick='() => Nav.NavigateTo("/")' />
+    <MudText Typo="Typo.h5">
+        <MudIcon Icon="@Icons.Material.Filled.Language" Class="mr-2" />@L["language.title"]
+    </MudText>
+</MudStack>
+
+<MudPaper Elevation="2" Class="pa-6" Style="max-width:600px">
+    <MudText Typo="Typo.body1" Class="mb-4 mud-text-secondary">
+        @L["language.description"]
+    </MudText>
+
+    <MudText Typo="Typo.subtitle2" Class="mb-2">@L["language.current"]: <b>@L.GetLanguageDisplayName(L.Lang)</b></MudText>
+
+    <MudDivider Class="my-4" />
+
+    <MudStack Spacing="2">
+        @foreach (var lang in L.SupportedLanguages)
+        {
+            var langCode = lang;
+            var isSelected = langCode == L.Lang;
+            <MudPaper Elevation="@(isSelected ? 3 : 1)" Class="pa-4"
+                      Style="@(isSelected ? "border: 2px solid var(--mud-palette-primary);" : "cursor: pointer;")"
+                      @onclick="@(() => SelectLanguage(langCode))">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudText Typo="Typo.h5">@L.GetLanguageFlag(langCode)</MudText>
+                    <div>
+                        <MudText Typo="Typo.subtitle1">@L.GetLanguageDisplayName(langCode)</MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@langCode</MudText>
+                    </div>
+                    <MudSpacer />
+                    @if (isSelected)
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Primary" />
+                    }
+                    else
+                    {
+                        <MudIcon Icon="@Icons.Material.Filled.RadioButtonUnchecked" Color="Color.Default" />
+                    }
+                </MudStack>
+            </MudPaper>
+        }
+    </MudStack>
+</MudPaper>
+
+@inject NavigationManager Nav
+
+@code {
+    protected override void OnInitialized()
+    {
+        L.OnChange += StateHasChanged;
+    }
+
+    private async Task SelectLanguage(string lang)
+    {
+        if (lang == L.Lang) return;
+        await L.SetLanguageAsync(lang);
+        Snackbar.Add(L["language.updated"], Severity.Success);
+    }
+
+    public void Dispose()
+    {
+        L.OnChange -= StateHasChanged;
+    }
+}

@@ -14,8 +14,8 @@ public class ObservationConfiguration : IEntityTypeConfiguration<Observation>
         builder.Property(o => o.Title).HasMaxLength(300).IsRequired();
         builder.Property(o => o.Description).IsRequired();
         builder.Property(o => o.Category).HasMaxLength(100);
-        builder.Property(o => o.Severity).HasConversion<string>().HasMaxLength(20);
-        builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(50);
+        builder.Property(o => o.Severity);
+        builder.Property(o => o.Status);
         builder.Property(o => o.LocationDescription).HasMaxLength(300);
         builder.Property(o => o.SyncId).HasMaxLength(100);
         builder.Property(o => o.Latitude).HasPrecision(10, 7);

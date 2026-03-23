@@ -1,0 +1,74 @@
+@* Dialog for creating/editing a project unit *@
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(IsEdit ? "Editar Unidad" : "Nueva Unidad")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="UnitCode" Label="Código *" Variant="Variant.Outlined" FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect @bind-Value="UnitType" Label="Tipo" Variant="Variant.Outlined" FullWidth="true">
+                    <MudSelectItem Value="@("departamento")">Departamento</MudSelectItem>
+                    <MudSelectItem Value="@("casa")">Casa</MudSelectItem>
+                    <MudSelectItem Value="@("oficina")">Oficina</MudSelectItem>
+                    <MudSelectItem Value="@("local_comercial")">Local Comercial</MudSelectItem>
+                    <MudSelectItem Value="@("bodega")">Bodega</MudSelectItem>
+                    <MudSelectItem Value="@("estacionamiento")">Estacionamiento</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12">
+                <MudSelect T="Guid?" @bind-Value="SectorId" Label="Sector"
+                           Variant="Variant.Outlined" FullWidth="true" Clearable="true">
+                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Sin sector</MudSelectItem>
+                    @foreach (var s in (AvailableSectors ?? new List<SectorDto>()))
+                    {
+                        <MudSelectItem T="Guid?" Value="@s.Id">@s.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudNumericField @bind-Value="Floor" Label="Piso" Variant="Variant.Outlined" FullWidth="true" Clearable="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudNumericField @bind-Value="SurfaceM2" Label="Superficie m2" Variant="Variant.Outlined"
+                                 FullWidth="true" Clearable="true" Format="N2" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudSelect @bind-Value="Status" Label="Estado" Variant="Variant.Outlined" FullWidth="true">
+                    <MudSelectItem Value="@("construccion")">Construcción</MudSelectItem>
+                    <MudSelectItem Value="@("terminada")">Terminada</MudSelectItem>
+                    <MudSelectItem Value="@("entregada")">Entregada</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Submit"
+                   Disabled="@string.IsNullOrWhiteSpace(UnitCode)">
+            @(IsEdit ? "Guardar" : "Crear")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public bool IsEdit { get; set; }
+    [Parameter] public string UnitCode { get; set; } = string.Empty;
+    [Parameter] public string UnitType { get; set; } = "departamento";
+    [Parameter] public Guid? SectorId { get; set; }
+    [Parameter] public int? Floor { get; set; }
+    [Parameter] public decimal? SurfaceM2 { get; set; }
+    [Parameter] public string Status { get; set; } = "construccion";
+    [Parameter] public List<SectorDto>? AvailableSectors { get; set; }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        MudDialog.Close(DialogResult.Ok(new UnitDialogResult(UnitCode, UnitType, SectorId, Floor, SurfaceM2, Status)));
+    }
+}

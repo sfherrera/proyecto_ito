@@ -1,10 +1,13 @@
 @page "/observations/{Id:guid}"
+@attribute [Authorize(Roles = "SuperAdmin,AdminTenant,Director,Supervisor,Inspector")]
+@implements IDisposable
 
+@using ITO.Cloud.Web.Auth
 @inject ItoApiService Api
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
 
-<PageTitle>Observación — ITO Cloud</PageTitle>
+<PageTitle>@L["observations.title"] — ITO Cloud</PageTitle>
 
 @if (_loading)
 {
@@ -12,7 +15,7 @@
 }
 else if (_obs == null)
 {
-    <MudAlert Severity="Severity.Error">Observación no encontrada.</MudAlert>
+    <MudAlert Severity="Severity.Error">@L["observations.not_found"]</MudAlert>
 }
 else
 {
@@ -22,38 +25,41 @@ else
         <MudChip T="string" Color="@GetSeverityColor(_obs.Severity)" Size="Size.Small">@_obs.Severity</MudChip>
         <MudChip T="string" Color="@GetStatusColor(_obs.Status)" Size="Size.Small">@_obs.Status</MudChip>
         <MudSpacer />
+        <HelpButton Module="observation-detail" />
         @if (_obs.Status != "Cerrada" && _obs.Status != "Rechazada")
         {
-            <MudButton Variant="Variant.Outlined" Color="Color.Success"
-                       StartIcon="@Icons.Material.Filled.CheckCircle"
-                       OnClick="OpenCloseDialog" Disabled="_working">
-                Cerrar
-            </MudButton>
-            <MudButton Variant="Variant.Outlined" Color="Color.Warning"
-                       StartIcon="@Icons.Material.Filled.Refresh"
-                       OnClick="OpenReviewDialog" Disabled="_working">
-                En Revisión
-            </MudButton>
+            <AuthorizeView Roles="SuperAdmin,AdminTenant,Director,Supervisor">
+                <MudButton Variant="Variant.Outlined" Color="Color.Success"
+                           StartIcon="@Icons.Material.Filled.CheckCircle"
+                           OnClick="OpenCloseDialog" Disabled="_working">
+                    @L["observations.close"]
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning"
+                           StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="OpenReviewDialog" Disabled="_working">
+                    @L["observations.in_review"]
+                </MudButton>
+            </AuthorizeView>
         }
     </MudStack>
 
     <MudGrid>
         <MudItem xs="12" md="6">
             <MudPaper Elevation="2" Class="pa-4">
-                <MudText Typo="Typo.subtitle1" Class="mb-3">Detalle</MudText>
+                <MudText Typo="Typo.subtitle1" Class="mb-3">@L["observations.detail"]</MudText>
                 <MudText Typo="Typo.body1" Class="mb-3">@_obs.Title</MudText>
                 <MudText Class="mud-text-secondary">@_obs.Description</MudText>
                 <MudDivider Class="my-3" />
                 <MudList T="string" Dense="true">
-                    <MudListItem><b>Categoría:</b> @(_obs.Category ?? "—")</MudListItem>
-                    <MudListItem><b>Ubicación:</b> @(_obs.LocationDescription ?? "—")</MudListItem>
-                    <MudListItem><b>Asignado a:</b> @(_obs.AssignedToName ?? "—")</MudListItem>
-                    <MudListItem><b>Contratista:</b> @(_obs.ContractorName ?? "—")</MudListItem>
-                    <MudListItem><b>Fecha límite:</b> @(_obs.DueDate ?? "—")</MudListItem>
-                    <MudListItem><b>Detectada:</b> @_obs.DetectedAt.ToString("dd/MM/yyyy")</MudListItem>
+                    <MudListItem><b>@L["observations.category"]:</b> @(_obs.Category ?? "—")</MudListItem>
+                    <MudListItem><b>@L["observations.location"]:</b> @(_obs.LocationDescription ?? "—")</MudListItem>
+                    <MudListItem><b>@L["observations.assigned_to"]:</b> @(_obs.AssignedToName ?? "—")</MudListItem>
+                    <MudListItem><b>@L["observations.contractor"]:</b> @(_obs.ContractorName ?? "—")</MudListItem>
+                    <MudListItem><b>@L["observations.due_date_label"]:</b> @(_obs.DueDate ?? "—")</MudListItem>
+                    <MudListItem><b>@L["observations.detected_at"]:</b> @_obs.DetectedAt.ToString("dd/MM/yyyy")</MudListItem>
                     @if (_obs.ClosedAt.HasValue)
                     {
-                        <MudListItem><b>Cerrada:</b> @_obs.ClosedAt.Value.ToString("dd/MM/yyyy")</MudListItem>
+                        <MudListItem><b>@L["observations.closed_at"]:</b> @_obs.ClosedAt.Value.ToString("dd/MM/yyyy")</MudListItem>
                     }
                 </MudList>
             </MudPaper>
@@ -63,7 +69,7 @@ else
         {
             <MudItem xs="12" md="6">
                 <MudPaper Elevation="2" Class="pa-4">
-                    <MudText Typo="Typo.subtitle1" Class="mb-3">Historial</MudText>
+                    <MudText Typo="Typo.subtitle1" Class="mb-3">@L["observations.history"]</MudText>
                     <MudTimeline TimelinePosition="TimelinePosition.Start">
                         @foreach (var h in _obs.History)
                         {
@@ -87,15 +93,15 @@ else
 
 <!-- Dialog cambiar estado -->
 <MudDialog @bind-Visible="_showStatusDialog">
-    <TitleContent><MudText Typo="Typo.h6">Cambiar Estado</MudText></TitleContent>
+    <TitleContent><MudText Typo="Typo.h6">@L["observations.change_status"]</MudText></TitleContent>
     <DialogContent>
-        <MudText Class="mb-3">Nuevo estado: <b>@_newStatus</b></MudText>
-        <MudTextField @bind-Value="_statusComment" Label="Comentario (opcional)" Variant="Variant.Outlined"
+        <MudText Class="mb-3">@L["observations.new_status"] <b>@_newStatus</b></MudText>
+        <MudTextField @bind-Value="_statusComment" Label="@L["observations.comment"]" Variant="Variant.Outlined"
                       FullWidth="true" Lines="3" />
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="() => _showStatusDialog = false">Cancelar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ChangeStatus">Confirmar</MudButton>
+        <MudButton OnClick="() => _showStatusDialog = false">@L["common.cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ChangeStatus">@L["common.confirm"]</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -111,10 +117,13 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        L.OnChange += StateHasChanged;
         try   { _obs = await Api.GetObservationByIdAsync(Id); }
-        catch { Snackbar.Add("Error cargando observación", Severity.Error); }
+        catch { Snackbar.Add(L["observations.error_loading_detail"], Severity.Error); }
         finally { _loading = false; }
     }
+
+    public void Dispose() { L.OnChange -= StateHasChanged; }
 
     private void OpenCloseDialog()   => OpenStatusDialog("Cerrada");
     private void OpenReviewDialog()  => OpenStatusDialog("EnRevision");
@@ -136,8 +145,8 @@ else
         else
             ok = await Api.UpdateObservationStatusAsync(Id, new { NewStatus = _newStatus, Comment = _statusComment });
 
-        if (ok) { Snackbar.Add("Estado actualizado", Severity.Success); _obs = await Api.GetObservationByIdAsync(Id); }
-        else    Snackbar.Add("Error al actualizar estado", Severity.Error);
+        if (ok) { Snackbar.Add(L["observations.status_updated"], Severity.Success); _obs = await Api.GetObservationByIdAsync(Id); }
+        else    Snackbar.Add(L["observations.error_updating_status"], Severity.Error);
         _working = false;
     }
 

@@ -2,18 +2,33 @@ using ITO.Cloud.Domain.Enums;
 
 namespace ITO.Cloud.Application.Features.Observations.DTOs;
 
-public record ObservationDto(
-    Guid Id, Guid ProjectId, Guid? InspectionId,
-    string Code, string Title, string Description,
-    Guid? SpecialtyId, string? Category,
-    ObservationSeverity Severity, ObservationStatus Status,
-    Guid? SectorId, Guid? UnitId, string? LocationDescription,
-    Guid? ContractorId, string? ContractorName,
-    Guid? AssignedToId, string? AssignedToName,
-    DateTime DetectedAt, DateOnly? DueDate,
-    DateTime? ClosedAt, int RejectionCount,
-    bool IsRecurring, DateTime CreatedAt,
-    IList<ObservationHistoryDto>? History = null);
+public class ObservationDto
+{
+    public Guid Id { get; set; }
+    public Guid ProjectId { get; set; }
+    public Guid? InspectionId { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public Guid? SpecialtyId { get; set; }
+    public string? Category { get; set; }
+    public ObservationSeverity Severity { get; set; }
+    public ObservationStatus Status { get; set; }
+    public Guid? SectorId { get; set; }
+    public Guid? UnitId { get; set; }
+    public string? LocationDescription { get; set; }
+    public Guid? ContractorId { get; set; }
+    public string? ContractorName { get; set; }
+    public Guid? AssignedToId { get; set; }
+    public string? AssignedToName { get; set; }
+    public DateTime DetectedAt { get; set; }
+    public DateOnly? DueDate { get; set; }
+    public DateTime? ClosedAt { get; set; }
+    public int RejectionCount { get; set; }
+    public bool IsRecurring { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public IList<ObservationHistoryDto>? History { get; set; }
+}
 
 public record ObservationHistoryDto(
     Guid Id, string Action, string? PreviousStatus, string? NewStatus,

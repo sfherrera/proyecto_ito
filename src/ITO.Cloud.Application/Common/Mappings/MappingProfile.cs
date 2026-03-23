@@ -49,13 +49,17 @@ public class MappingProfile : Profile
         CreateMap<CreateTemplateQuestionDto, TemplateQuestion>();
 
         // Inspections
-        CreateMap<Inspection, InspectionDto>();
+        CreateMap<Inspection, InspectionDto>()
+            .ForMember(d => d.AssignedToName, o => o.MapFrom(s => s.AssignedTo != null ? s.AssignedTo.FirstName + " " + s.AssignedTo.LastName : null))
+            .ForMember(d => d.ContractorName, o => o.MapFrom(s => s.Contractor != null ? s.Contractor.Name : null));
         CreateMap<InspectionAnswer, InspectionAnswerDto>();
         CreateMap<InspectionEvidence, InspectionEvidenceDto>();
         CreateMap<CreateInspectionDto, Inspection>();
 
         // Observations
-        CreateMap<Observation, ObservationDto>();
+        CreateMap<Observation, ObservationDto>()
+            .ForMember(d => d.ContractorName, o => o.MapFrom(s => (string?)null))
+            .ForMember(d => d.AssignedToName, o => o.MapFrom(s => (string?)null));
         CreateMap<ObservationHistory, ObservationHistoryDto>();
         CreateMap<CreateObservationDto, Observation>();
     }

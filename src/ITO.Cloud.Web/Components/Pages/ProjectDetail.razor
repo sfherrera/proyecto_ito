@@ -1,10 +1,14 @@
 @page "/projects/{Id:guid}"
+@attribute [Authorize(Roles = "SuperAdmin,AdminTenant,Director,Supervisor,Inspector")]
+@implements IDisposable
 
+@using ITO.Cloud.Web.Auth
 @inject ItoApiService Api
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
-<PageTitle>Proyecto — ITO Cloud</PageTitle>
+<PageTitle>@L["projects.title"] — ITO Cloud</PageTitle>
 
 @if (_loading)
 {
@@ -12,7 +16,7 @@
 }
 else if (_project == null)
 {
-    <MudAlert Severity="Severity.Error">Proyecto no encontrado.</MudAlert>
+    <MudAlert Severity="Severity.Error">@L["projects.not_found"]</MudAlert>
 }
 else
 {
@@ -21,115 +25,377 @@ else
         <MudText Typo="Typo.h5">@_project.Name</MudText>
         <MudChip T="string" Color="@GetStatusColor(_project.Status)" Size="Size.Small">@_project.Status</MudChip>
         <MudSpacer />
+        <HelpButton Module="project-detail" />
         @if (!_editing)
         {
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                       StartIcon="@Icons.Material.Filled.AccountTree"
+                       OnClick='() => Nav.NavigateTo($"/projects/{Id}/structure")'>@L["projects.manage_structure"]</MudButton>
             <MudButton Variant="Variant.Outlined" Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.Edit"
-                       OnClick="() => _editing = true">Editar</MudButton>
+                       OnClick="() => _editing = true">@L["common.edit"]</MudButton>
             <MudButton Variant="Variant.Outlined" Color="Color.Error"
                        StartIcon="@Icons.Material.Filled.Delete"
-                       OnClick="DeleteProject">Eliminar</MudButton>
+                       OnClick="DeleteProject">@L["common.delete"]</MudButton>
         }
     </MudStack>
 
-    @if (!_editing)
-    {
-        <!-- Vista detalle -->
-        <MudGrid>
-            <MudItem xs="12" md="6">
-                <MudPaper Elevation="2" Class="pa-4">
-                    <MudText Typo="Typo.subtitle1" Class="mb-3">Información General</MudText>
-                    <MudList T="string" Dense="true">
-                        <MudListItem><b>Código:</b> @_project.Code</MudListItem>
-                        <MudListItem><b>Empresa:</b> @_project.CompanyName</MudListItem>
-                        <MudListItem><b>Tipo:</b> @_project.ProjectType</MudListItem>
-                        <MudListItem><b>Mandante:</b> @(_project.MandanteName ?? "—")</MudListItem>
-                        <MudListItem><b>Unidades:</b> @(_project.TotalUnits?.ToString() ?? "—")</MudListItem>
-                    </MudList>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudPaper Elevation="2" Class="pa-4">
-                    <MudText Typo="Typo.subtitle1" Class="mb-3">Ubicación y Fechas</MudText>
-                    <MudList T="string" Dense="true">
-                        <MudListItem><b>Dirección:</b> @(_project.Address ?? "—")</MudListItem>
-                        <MudListItem><b>Ciudad:</b> @(_project.City ?? "—")</MudListItem>
-                        <MudListItem><b>Región:</b> @(_project.Region ?? "—")</MudListItem>
-                        <MudListItem><b>Inicio:</b> @(_project.StartDate ?? "—")</MudListItem>
-                        <MudListItem><b>Término estimado:</b> @(_project.EstimatedEndDate ?? "—")</MudListItem>
-                    </MudList>
-                </MudPaper>
-            </MudItem>
-            @if (!string.IsNullOrEmpty(_project.Description))
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" Class="mt-2">
+        <!-- Tab: Información General -->
+        <MudTabPanel Text="@L["projects.general_info"]" Icon="@Icons.Material.Filled.Info">
+            @if (!_editing)
             {
-                <MudItem xs="12">
-                    <MudPaper Elevation="2" Class="pa-4">
-                        <MudText Typo="Typo.subtitle1" Class="mb-2">Descripción</MudText>
-                        <MudText>@_project.Description</MudText>
-                    </MudPaper>
-                </MudItem>
+                <MudGrid Class="pa-4">
+                    <MudItem xs="12" md="6">
+                        <MudPaper Elevation="2" Class="pa-4">
+                            <MudText Typo="Typo.subtitle1" Class="mb-3">@L["projects.general_info"]</MudText>
+                            <MudList T="string" Dense="true">
+                                <MudListItem><b>@L["common.code"]:</b> @_project.Code</MudListItem>
+                                <MudListItem><b>@L["projects.company"]:</b> @_project.CompanyName</MudListItem>
+                                <MudListItem><b>@L["common.type"]:</b> @_project.ProjectType</MudListItem>
+                                <MudListItem><b>@L["projects.mandante"]:</b> @(_project.MandanteName ?? "—")</MudListItem>
+                                <MudListItem><b>@L["projects.units"]:</b> @(_project.TotalUnits?.ToString() ?? "—")</MudListItem>
+                            </MudList>
+                        </MudPaper>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudPaper Elevation="2" Class="pa-4">
+                            <MudText Typo="Typo.subtitle1" Class="mb-3">@L["projects.location_dates"]</MudText>
+                            <MudList T="string" Dense="true">
+                                <MudListItem><b>@L["common.address"]:</b> @(_project.Address ?? "—")</MudListItem>
+                                <MudListItem><b>@L["common.city"]:</b> @(_project.City ?? "—")</MudListItem>
+                                <MudListItem><b>@L["common.region"]:</b> @(_project.Region ?? "—")</MudListItem>
+                                <MudListItem><b>@L["projects.start"]:</b> @(_project.StartDate ?? "—")</MudListItem>
+                                <MudListItem><b>@L["projects.estimated_end_label"]:</b> @(_project.EstimatedEndDate ?? "—")</MudListItem>
+                            </MudList>
+                        </MudPaper>
+                    </MudItem>
+                    @if (!string.IsNullOrEmpty(_project.Description))
+                    {
+                        <MudItem xs="12">
+                            <MudPaper Elevation="2" Class="pa-4">
+                                <MudText Typo="Typo.subtitle1" Class="mb-2">@L["common.description"]</MudText>
+                                <MudText>@_project.Description</MudText>
+                            </MudPaper>
+                        </MudItem>
+                    }
+                </MudGrid>
             }
-        </MudGrid>
-    }
-    else
-    {
-        <!-- Formulario edición -->
-        <MudPaper Elevation="2" Class="pa-6" Style="max-width:800px">
-            <MudGrid>
-                <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_form.Code" Label="Código *" Variant="Variant.Outlined" FullWidth="true" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_form.Name" Label="Nombre *" Variant="Variant.Outlined" FullWidth="true" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudSelect @bind-Value="_form.ProjectType" Label="Tipo" Variant="Variant.Outlined" FullWidth="true">
-                        <MudSelectItem Value="@("edificio")">Edificio</MudSelectItem>
-                        <MudSelectItem Value="@("casa")">Casa</MudSelectItem>
-                        <MudSelectItem Value="@("infraestructura")">Infraestructura</MudSelectItem>
-                        <MudSelectItem Value="@("industrial")">Industrial</MudSelectItem>
-                        <MudSelectItem Value="@("comercial")">Comercial</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudSelect @bind-Value="_form.Status" Label="Estado" Variant="Variant.Outlined" FullWidth="true">
-                        <MudSelectItem Value="@("Activo")">Activo</MudSelectItem>
-                        <MudSelectItem Value="@("Paralizado")">Paralizado</MudSelectItem>
-                        <MudSelectItem Value="@("Terminado")">Terminado</MudSelectItem>
-                    </MudSelect>
-                </MudItem>
-                <MudItem xs="12">
-                    <MudTextField @bind-Value="_form.Description" Label="Descripción" Variant="Variant.Outlined"
-                                  FullWidth="true" Lines="3" />
-                </MudItem>
-                <MudItem xs="12">
-                    <MudTextField @bind-Value="_form.Address" Label="Dirección" Variant="Variant.Outlined" FullWidth="true" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_form.City" Label="Ciudad" Variant="Variant.Outlined" FullWidth="true" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_form.Region" Label="Región" Variant="Variant.Outlined" FullWidth="true" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_form.MandanteName" Label="Mandante" Variant="Variant.Outlined" FullWidth="true" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudNumericField @bind-Value="_form.TotalUnits" Label="Total Unidades" Variant="Variant.Outlined" FullWidth="true" />
-                </MudItem>
-                <MudItem xs="12">
-                    <MudSwitch @bind-Value="_form.IsActive" Label="Activo" Color="Color.Success" />
-                </MudItem>
-            </MudGrid>
-            <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4" Spacing="2">
-                <MudButton Variant="Variant.Outlined" OnClick="() => _editing = false">Cancelar</MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UpdateProject" Disabled="_saving">
-                    @(_saving ? "Guardando..." : "Guardar")
-                </MudButton>
-            </MudStack>
-        </MudPaper>
-    }
+            else
+            {
+                <!-- Formulario edición -->
+                <MudPaper Elevation="2" Class="pa-6 ma-4" Style="max-width:800px">
+                    <MudGrid>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="_form.Code" Label="@(L["common.code"] + " *")" Variant="Variant.Outlined" FullWidth="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="_form.Name" Label="@(L["common.name"] + " *")" Variant="Variant.Outlined" FullWidth="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudSelect @bind-Value="_form.ProjectType" Label="@L["common.type"]" Variant="Variant.Outlined" FullWidth="true">
+                                <MudSelectItem Value="@("edificio")">@L["projects.type_building"]</MudSelectItem>
+                                <MudSelectItem Value="@("casa")">@L["projects.type_house"]</MudSelectItem>
+                                <MudSelectItem Value="@("infraestructura")">@L["projects.type_infrastructure"]</MudSelectItem>
+                                <MudSelectItem Value="@("industrial")">@L["projects.type_industrial"]</MudSelectItem>
+                                <MudSelectItem Value="@("comercial")">@L["projects.type_commercial"]</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudSelect @bind-Value="_form.Status" Label="@L["common.status"]" Variant="Variant.Outlined" FullWidth="true">
+                                <MudSelectItem Value="@("Activo")">Activo</MudSelectItem>
+                                <MudSelectItem Value="@("Paralizado")">Paralizado</MudSelectItem>
+                                <MudSelectItem Value="@("Terminado")">Terminado</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="_form.Description" Label="@L["common.description"]" Variant="Variant.Outlined"
+                                          FullWidth="true" Lines="3" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="_form.Address" Label="@L["common.address"]" Variant="Variant.Outlined" FullWidth="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="_form.City" Label="@L["common.city"]" Variant="Variant.Outlined" FullWidth="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="_form.Region" Label="@L["common.region"]" Variant="Variant.Outlined" FullWidth="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="_form.MandanteName" Label="@L["projects.mandante"]" Variant="Variant.Outlined" FullWidth="true" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudNumericField @bind-Value="_form.TotalUnits" Label="@L["projects.total_units"]" Variant="Variant.Outlined" FullWidth="true" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudSwitch @bind-Value="_form.IsActive" Label="@L["common.active_m"]" Color="Color.Success" />
+                        </MudItem>
+                    </MudGrid>
+                    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4" Spacing="2">
+                        <MudButton Variant="Variant.Outlined" OnClick="() => _editing = false">@L["common.cancel"]</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UpdateProject" Disabled="_saving">
+                            @(_saving ? L["common.saving"] : L["common.save"])
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+            }
+        </MudTabPanel>
+
+        <!-- Tab: Documentos -->
+        <MudTabPanel Text="Documentos" Icon="@Icons.Material.Filled.Description" OnClick="LoadDocuments">
+            <div class="pa-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+                    <MudText Typo="Typo.h6">
+                        <MudIcon Icon="@Icons.Material.Filled.Description" Class="mr-1" />
+                        Documentación Técnica (@_documents.Count)
+                    </MudText>
+                    <MudSpacer />
+                    <AuthorizeView Roles="SuperAdmin,AdminTenant,Director,Supervisor">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.CloudUpload"
+                                   OnClick="OpenUploadDocDialog">
+                            Subir Documento
+                        </MudButton>
+                    </AuthorizeView>
+                </MudStack>
+
+                @if (_loadingDocs)
+                {
+                    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+                }
+                else if (_documents.Count == 0)
+                {
+                    <MudAlert Severity="Severity.Info">No hay documentos asociados al proyecto.</MudAlert>
+                }
+                else
+                {
+                    <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                        <thead>
+                            <tr>
+                                <th>@L["common.name"]</th>
+                                <th>Categoría</th>
+                                <th>Archivo</th>
+                                <th>Tamaño</th>
+                                <th>Versión</th>
+                                <th>Fecha</th>
+                                <th style="width:90px"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var doc in _documents)
+                            {
+                                <tr>
+                                    <td>
+                                        <MudText Typo="Typo.body2"><b>@doc.Name</b></MudText>
+                                        @if (!string.IsNullOrEmpty(doc.Description))
+                                        {
+                                            <MudText Typo="Typo.caption" Color="Color.Info">@doc.Description</MudText>
+                                        }
+                                    </td>
+                                    <td>
+                                        <MudChip T="string" Size="Size.Small" Color="@GetDocCategoryColor(doc.Category)">
+                                            @FormatDocCategory(doc.Category)
+                                        </MudChip>
+                                    </td>
+                                    <td>
+                                        <MudText Typo="Typo.body2">@doc.FileName</MudText>
+                                    </td>
+                                    <td>@FormatFileSize(doc.FileSizeBytes)</td>
+                                    <td>@(doc.Version ?? "—")</td>
+                                    <td>@doc.CreatedAt.ToString("dd/MM/yyyy")</td>
+                                    <td>
+                                        <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small"
+                                                       Color="Color.Primary" Title="Descargar"
+                                                       OnClick="@(() => DownloadDoc(doc))" />
+                                        <AuthorizeView Roles="SuperAdmin,AdminTenant,Director,Supervisor">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                                           Color="Color.Error" Title="@L["common.delete"]"
+                                                           OnClick="@(() => DeleteDoc(doc.Id))" />
+                                        </AuthorizeView>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                }
+            </div>
+        </MudTabPanel>
+
+        <!-- Tab: Equipo -->
+        <MudTabPanel Text="Equipo" Icon="@Icons.Material.Filled.Group" OnClick="LoadMembers">
+            <div class="pa-4">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+                    <MudText Typo="Typo.h6">
+                        <MudIcon Icon="@Icons.Material.Filled.Group" Class="mr-1" />
+                        @L["projects.members_title"] (@_members.Count)
+                    </MudText>
+                    <MudSpacer />
+                    <AuthorizeView Roles="SuperAdmin,AdminTenant,Director">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.PersonAdd"
+                                   OnClick="OpenAddMemberDialog">
+                            @L["projects.add_member"]
+                        </MudButton>
+                    </AuthorizeView>
+                </MudStack>
+
+                @if (_loadingMembers)
+                {
+                    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+                }
+                else if (_members.Count == 0)
+                {
+                    <MudAlert Severity="Severity.Info">@L["projects.no_members"]</MudAlert>
+                }
+                else
+                {
+                    <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                        <thead>
+                            <tr>
+                                <th>@L["common.name"]</th>
+                                <th>@L["common.email"]</th>
+                                <th>@L["projects.project_role"]</th>
+                                <th>@L["common.status"]</th>
+                                <th>@L["projects.assigned"]</th>
+                                <th style="width:50px"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var m in _members)
+                            {
+                                <tr>
+                                    <td>
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                            <MudAvatar Color="@GetRoleColor(m.ProjectRole)" Size="Size.Small">
+                                                @m.FullName[0]
+                                            </MudAvatar>
+                                            @m.FullName
+                                        </MudStack>
+                                    </td>
+                                    <td>@m.Email</td>
+                                    <td>
+                                        <MudChip T="string" Size="Size.Small" Color="@GetRoleColor(m.ProjectRole)">
+                                            @FormatRole(m.ProjectRole)
+                                        </MudChip>
+                                    </td>
+                                    <td>
+                                        <MudChip T="string" Size="Size.Small"
+                                                 Color="@(m.IsActive ? Color.Success : Color.Default)">
+                                            @(m.IsActive ? L["common.active_m"] : L["common.inactive_m"])
+                                        </MudChip>
+                                    </td>
+                                    <td>@m.AssignedAt.ToString("dd/MM/yyyy")</td>
+                                    <td>
+                                        <AuthorizeView Roles="SuperAdmin,AdminTenant,Director">
+                                            <MudIconButton Icon="@Icons.Material.Filled.PersonRemove" Size="Size.Small"
+                                                           Color="Color.Error" Title="@L["projects.remove_member"]"
+                                                           OnClick="@(() => RemoveMember(m.Id))" />
+                                        </AuthorizeView>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                }
+            </div>
+        </MudTabPanel>
+    </MudTabs>
 }
+
+<!-- Upload Document Dialog -->
+<MudDialog @bind-Visible="_showDocUploadDialog" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6">Subir Documento Técnico</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_docForm.Name" Label="Nombre del Documento *"
+                              Variant="Variant.Outlined" FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect @bind-Value="_docForm.Category" Label="Categoría *" Variant="Variant.Outlined" FullWidth="true">
+                    <MudSelectItem Value="@("plano")">Plano</MudSelectItem>
+                    <MudSelectItem Value="@("especificacion")">Especificación Técnica</MudSelectItem>
+                    <MudSelectItem Value="@("contrato")">Contrato</MudSelectItem>
+                    <MudSelectItem Value="@("procedimiento")">Procedimiento</MudSelectItem>
+                    <MudSelectItem Value="@("permiso")">Permiso / Autorización</MudSelectItem>
+                    <MudSelectItem Value="@("informe")">Informe</MudSelectItem>
+                    <MudSelectItem Value="@("acta")">Acta</MudSelectItem>
+                    <MudSelectItem Value="@("presupuesto")">Presupuesto</MudSelectItem>
+                    <MudSelectItem Value="@("cronograma")">Cronograma</MudSelectItem>
+                    <MudSelectItem Value="@("general")">General</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_docForm.Version" Label="Versión" Variant="Variant.Outlined"
+                              FullWidth="true" Placeholder="ej: v1.0, Rev.A" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_docForm.Description" Label="@L["common.description"]" Variant="Variant.Outlined"
+                              FullWidth="true" Lines="2" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudFileUpload T="IBrowserFile" Accept=".pdf,.dwg,.dxf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.zip,.rar"
+                               FilesChanged="OnDocFileSelected" MaximumFileCount="1">
+                    <ActivatorContent>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.AttachFile" FullWidth="true">
+                            @(_docForm.File != null ? _docForm.File.Name : "Seleccionar Archivo *")
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+                @if (_docForm.File != null)
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Info" Class="mt-1">
+                        @_docForm.File.Name — @FormatFileSize(_docForm.File.Size)
+                    </MudText>
+                }
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _showDocUploadDialog = false">@L["common.cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UploadDoc"
+                   Disabled="_uploadingDoc">
+            @(_uploadingDoc ? "Subiendo..." : "Subir")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- Add Member Dialog -->
+<MudDialog @bind-Visible="_showMemberDialog" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6">@L["projects.member_dialog_title"]</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudSelect @bind-Value="_memberForm.UserId" Label="@(L["projects.user"] + " *")" Variant="Variant.Outlined" FullWidth="true">
+                    @foreach (var u in _availableUsers)
+                    {
+                        <MudSelectItem Value="@u.Id">@u.FullName (@u.Email)</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12">
+                <MudSelect @bind-Value="_memberForm.ProjectRole" Label="@(L["projects.project_role"] + " *")" Variant="Variant.Outlined" FullWidth="true">
+                    <MudSelectItem Value="@("director")">@L["projects.role_director"]</MudSelectItem>
+                    <MudSelectItem Value="@("supervisor")">@L["projects.role_supervisor"]</MudSelectItem>
+                    <MudSelectItem Value="@("inspector")">@L["projects.role_inspector"]</MudSelectItem>
+                    <MudSelectItem Value="@("contratista")">@L["projects.role_contractor"]</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _showMemberDialog = false">@L["common.cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveMember"
+                   Disabled="_savingMember">
+            @(_savingMember ? L["common.saving"] : L["projects.add_member"])
+        </MudButton>
+    </DialogActions>
+</MudDialog>
 
 @code {
     [Parameter] public Guid Id { get; set; }
@@ -140,16 +406,36 @@ else
     private bool _saving  = false;
     private EditForm _form = new();
 
+    // ── Documents state ──────────────────────────────────────────────────────
+    private List<DocumentDto> _documents = [];
+    private bool _loadingDocs       = false;
+    private bool _docsLoaded        = false;
+    private bool _showDocUploadDialog = false;
+    private bool _uploadingDoc      = false;
+    private DocUploadForm _docForm  = new();
+
+    // ── Members state ────────────────────────────────────────────────────────
+    private List<ProjectMemberDto> _members = [];
+    private List<UserDto> _availableUsers   = [];
+    private bool _loadingMembers  = false;
+    private bool _membersLoaded   = false;
+    private bool _showMemberDialog = false;
+    private bool _savingMember     = false;
+    private MemberForm _memberForm = new();
+
     protected override async Task OnInitializedAsync()
     {
+        L.OnChange += StateHasChanged;
         try
         {
             _project = await Api.GetProjectByIdAsync(Id);
             if (_project != null) LoadForm();
         }
-        catch { Snackbar.Add("Error cargando proyecto", Severity.Error); }
+        catch { Snackbar.Add(L["projects.error_loading"], Severity.Error); }
         finally { _loading = false; }
     }
+
+    public void Dispose() { L.OnChange -= StateHasChanged; }
 
     private void LoadForm()
     {
@@ -187,20 +473,214 @@ else
         _saving = false;
         if (ok)
         {
-            Snackbar.Add("Proyecto actualizado", Severity.Success);
+            Snackbar.Add(L["projects.updated"], Severity.Success);
             _project = await Api.GetProjectByIdAsync(Id);
             _editing = false;
         }
-        else Snackbar.Add("Error al actualizar", Severity.Error);
+        else Snackbar.Add(L["projects.error_updating"], Severity.Error);
     }
 
     private async Task DeleteProject()
     {
         var ok = await Api.DeleteProjectAsync(Id);
-        if (ok) { Snackbar.Add("Proyecto eliminado", Severity.Success); Nav.NavigateTo("/projects"); }
-        else    Snackbar.Add("Error al eliminar", Severity.Error);
+        if (ok) { Snackbar.Add(L["projects.deleted"], Severity.Success); Nav.NavigateTo("/projects"); }
+        else    Snackbar.Add(L["projects.error_deleting"], Severity.Error);
     }
 
+    // ── Documents ─────────────────────────────────────────────────────────────
+    private async Task LoadDocuments()
+    {
+        if (_docsLoaded) return;
+        _loadingDocs = true;
+        try
+        {
+            _documents = await Api.GetDocumentsAsync(Id);
+            _docsLoaded = true;
+        }
+        catch { Snackbar.Add("Error cargando documentos", Severity.Error); }
+        finally { _loadingDocs = false; }
+    }
+
+    private void OpenUploadDocDialog()
+    {
+        _docForm = new DocUploadForm();
+        _showDocUploadDialog = true;
+    }
+
+    private void OnDocFileSelected(IBrowserFile file) => _docForm.File = file;
+
+    private async Task UploadDoc()
+    {
+        if (string.IsNullOrWhiteSpace(_docForm.Name))
+        {
+            Snackbar.Add("Ingrese el nombre del documento", Severity.Warning);
+            return;
+        }
+        if (_docForm.File == null)
+        {
+            Snackbar.Add("Seleccione un archivo", Severity.Warning);
+            return;
+        }
+
+        _uploadingDoc = true;
+        try
+        {
+            var content = new MultipartFormDataContent();
+            content.Add(new StringContent(Id.ToString()), "projectId");
+            content.Add(new StringContent(_docForm.Name), "name");
+            content.Add(new StringContent(_docForm.Category), "category");
+            if (!string.IsNullOrEmpty(_docForm.Description))
+                content.Add(new StringContent(_docForm.Description), "description");
+            if (!string.IsNullOrEmpty(_docForm.Version))
+                content.Add(new StringContent(_docForm.Version), "version");
+
+            var stream = _docForm.File.OpenReadStream(52_428_800);
+            content.Add(new StreamContent(stream), "file", _docForm.File.Name);
+
+            var ok = await Api.UploadDocumentAsync(Id, _docForm.Name, _docForm.Category,
+                _docForm.Description, _docForm.Version, content);
+
+            if (ok)
+            {
+                Snackbar.Add("Documento subido exitosamente", Severity.Success);
+                _showDocUploadDialog = false;
+                _docsLoaded = false;
+                await LoadDocuments();
+            }
+            else Snackbar.Add("Error al subir documento", Severity.Error);
+        }
+        catch (Exception ex) { Snackbar.Add($"Error: {ex.Message}", Severity.Error); }
+        finally { _uploadingDoc = false; }
+    }
+
+    private async Task DownloadDoc(DocumentDto doc)
+    {
+        try
+        {
+            var bytes = await Api.DownloadDocumentAsync(doc.Id);
+            if (bytes != null)
+            {
+                using var streamRef = new DotNetStreamReference(new MemoryStream(bytes));
+                await JS.InvokeVoidAsync("downloadFileFromStream", doc.FileName, streamRef);
+            }
+            else Snackbar.Add("Error al descargar", Severity.Error);
+        }
+        catch { Snackbar.Add("Error al descargar documento", Severity.Error); }
+    }
+
+    private async Task DeleteDoc(Guid docId)
+    {
+        var ok = await Api.DeleteDocumentAsync(docId);
+        if (ok)
+        {
+            Snackbar.Add("Documento eliminado", Severity.Success);
+            _docsLoaded = false;
+            await LoadDocuments();
+        }
+        else Snackbar.Add("Error al eliminar documento", Severity.Error);
+    }
+
+    private static string FormatDocCategory(string cat) => cat switch
+    {
+        "plano"          => "Plano",
+        "especificacion" => "Espec. Técnica",
+        "contrato"       => "Contrato",
+        "procedimiento"  => "Procedimiento",
+        "permiso"        => "Permiso",
+        "informe"        => "Informe",
+        "acta"           => "Acta",
+        "presupuesto"    => "Presupuesto",
+        "cronograma"     => "Cronograma",
+        _                => "General"
+    };
+
+    private static Color GetDocCategoryColor(string cat) => cat switch
+    {
+        "plano"          => Color.Primary,
+        "especificacion" => Color.Info,
+        "contrato"       => Color.Warning,
+        "procedimiento"  => Color.Secondary,
+        "permiso"        => Color.Success,
+        _                => Color.Default
+    };
+
+    private static string FormatFileSize(long? bytes)
+    {
+        if (!bytes.HasValue) return "—";
+        return bytes.Value switch
+        {
+            < 1024       => $"{bytes.Value} B",
+            < 1048576    => $"{bytes.Value / 1024.0:F1} KB",
+            < 1073741824 => $"{bytes.Value / 1048576.0:F1} MB",
+            _            => $"{bytes.Value / 1073741824.0:F1} GB"
+        };
+    }
+
+    // ── Members ──────────────────────────────────────────────────────────────
+    private async Task LoadMembers()
+    {
+        if (_membersLoaded) return;
+        _loadingMembers = true;
+        try
+        {
+            _members = await Api.GetProjectMembersAsync(Id);
+            _membersLoaded = true;
+        }
+        catch { Snackbar.Add(L["projects.error_loading_members"], Severity.Error); }
+        finally { _loadingMembers = false; }
+    }
+
+    private async Task OpenAddMemberDialog()
+    {
+        _memberForm = new MemberForm();
+        try
+        {
+            _availableUsers = await Api.GetUsersAsync();
+            // Filter out users already in the project
+            var memberIds = _members.Select(m => m.UserId).ToHashSet();
+            _availableUsers = _availableUsers.Where(u => !memberIds.Contains(u.Id)).ToList();
+        }
+        catch { Snackbar.Add(L["projects.error_loading_users"], Severity.Error); return; }
+        _showMemberDialog = true;
+    }
+
+    private async Task SaveMember()
+    {
+        if (_memberForm.UserId == Guid.Empty)
+        {
+            Snackbar.Add(L["projects.select_user"], Severity.Warning);
+            return;
+        }
+        _savingMember = true;
+        var ok = await Api.AddProjectMemberAsync(Id, new
+        {
+            _memberForm.UserId,
+            _memberForm.ProjectRole
+        });
+        _savingMember = false;
+        if (ok)
+        {
+            Snackbar.Add(L["projects.member_added"], Severity.Success);
+            _showMemberDialog = false;
+            _membersLoaded = false;
+            await LoadMembers();
+        }
+        else Snackbar.Add(L["projects.error_adding_member"], Severity.Error);
+    }
+
+    private async Task RemoveMember(Guid memberId)
+    {
+        var ok = await Api.RemoveProjectMemberAsync(Id, memberId);
+        if (ok)
+        {
+            Snackbar.Add(L["projects.member_removed"], Severity.Success);
+            _membersLoaded = false;
+            await LoadMembers();
+        }
+        else Snackbar.Add(L["projects.error_removing_member"], Severity.Error);
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
     private static Color GetStatusColor(string? s) => s switch
     {
         "Activo"     => Color.Success,
@@ -209,6 +689,25 @@ else
         _            => Color.Info
     };
 
+    private static string FormatRole(string role) => role switch
+    {
+        "director"    => "Director",
+        "supervisor"  => "Supervisor",
+        "inspector"   => "Inspector",
+        "contratista" => "Contratista",
+        _             => role
+    };
+
+    private static Color GetRoleColor(string role) => role switch
+    {
+        "director"    => Color.Primary,
+        "supervisor"  => Color.Info,
+        "inspector"   => Color.Success,
+        "contratista" => Color.Warning,
+        _             => Color.Default
+    };
+
+    // ── Form models ─────────────────────────────────────────────────────────
     private class EditForm
     {
         public string  Code         { get; set; } = string.Empty;
@@ -222,5 +721,20 @@ else
         public string? MandanteName { get; set; }
         public int?    TotalUnits   { get; set; }
         public bool    IsActive     { get; set; } = true;
+    }
+
+    private class MemberForm
+    {
+        public Guid   UserId      { get; set; }
+        public string ProjectRole { get; set; } = "inspector";
+    }
+
+    private class DocUploadForm
+    {
+        public string  Name        { get; set; } = string.Empty;
+        public string  Category    { get; set; } = "plano";
+        public string? Description { get; set; }
+        public string? Version     { get; set; }
+        public IBrowserFile? File  { get; set; }
     }
 }

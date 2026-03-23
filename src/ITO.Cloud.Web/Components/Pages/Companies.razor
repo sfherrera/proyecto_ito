@@ -1,36 +1,42 @@
 @page "/companies"
+@attribute [Authorize(Roles = "SuperAdmin,AdminTenant,Director")]
+@implements IDisposable
 
+@using ITO.Cloud.Web.Auth
 @inject ItoApiService Api
 @inject ISnackbar Snackbar
 
-<PageTitle>Empresas — ITO Cloud</PageTitle>
+<PageTitle>@L["companies.title"] — ITO Cloud</PageTitle>
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudText Typo="Typo.h5">
-        <MudIcon Icon="@Icons.Material.Filled.Business" Class="mr-2" />Empresas
+        <MudIcon Icon="@Icons.Material.Filled.Business" Class="mr-2" />@L["companies.title"]
     </MudText>
     <MudSpacer />
-    <MudButton Variant="Variant.Filled" Color="Color.Primary"
-               StartIcon="@Icons.Material.Filled.Add"
-               OnClick="OpenCreateDialog">
-        Nueva Empresa
-    </MudButton>
+    <HelpButton Module="companies" />
+    <AuthorizeView Roles="SuperAdmin,AdminTenant">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="OpenCreateDialog">
+            @L["companies.new"]
+        </MudButton>
+    </AuthorizeView>
 </MudStack>
 
 <MudPaper Elevation="2">
     <MudTable Items="_companies" Hover="true" Striped="true" Loading="_loading"
               Filter="FilterFunc" Dense="true">
         <ToolBarContent>
-            <MudTextField @bind-Value="_searchText" Placeholder="Buscar..." Adornment="Adornment.Start"
+            <MudTextField @bind-Value="_searchText" Placeholder="@L["common.search"]" Adornment="Adornment.Start"
                           AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium"
                           Class="mt-0" Immediate="true" />
         </ToolBarContent>
         <HeaderContent>
-            <MudTh>Nombre</MudTh>
-            <MudTh>RUT</MudTh>
-            <MudTh>Tipo</MudTh>
-            <MudTh>Estado</MudTh>
-            <MudTh>Acciones</MudTh>
+            <MudTh>@L["common.name"]</MudTh>
+            <MudTh>@L["common.rut"]</MudTh>
+            <MudTh>@L["common.type"]</MudTh>
+            <MudTh>@L["common.status"]</MudTh>
+            <MudTh>@L["common.actions"]</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd>@context.Name</MudTd>
@@ -38,18 +44,20 @@
             <MudTd>@context.CompanyType</MudTd>
             <MudTd>
                 <MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Default)" Size="Size.Small">
-                    @(context.IsActive ? "Activa" : "Inactiva")
+                    @(context.IsActive ? L["common.active_f"] : L["common.inactive_f"])
                 </MudChip>
             </MudTd>
             <MudTd>
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
-                               OnClick="() => OpenEditDialog(context.Id)" />
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
-                               OnClick="() => DeleteCompany(context.Id)" />
+                <AuthorizeView Roles="SuperAdmin,AdminTenant" Context="_ac">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small"
+                                   OnClick="() => OpenEditDialog(context.Id)" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                   OnClick="() => DeleteCompany(context.Id)" />
+                </AuthorizeView>
             </MudTd>
         </RowTemplate>
         <NoRecordsContent>
-            <MudText Class="pa-4">No se encontraron empresas.</MudText>
+            <MudText Class="pa-4">@L["companies.no_records"]</MudText>
         </NoRecordsContent>
     </MudTable>
 </MudPaper>
@@ -57,45 +65,45 @@
 <!-- Dialog crear / editar empresa -->
 <MudDialog @bind-Visible="_showDialog">
     <TitleContent>
-        <MudText Typo="Typo.h6">@(_editId.HasValue ? "Editar Empresa" : "Nueva Empresa")</MudText>
+        <MudText Typo="Typo.h6">@(_editId.HasValue ? L["companies.edit"] : L["companies.new"])</MudText>
     </TitleContent>
     <DialogContent>
         <MudGrid>
             <MudItem xs="12">
-                <MudTextField @bind-Value="_form.Name" Label="Nombre *" Variant="Variant.Outlined" FullWidth="true" />
+                <MudTextField @bind-Value="_form.Name" Label="@(L["common.name"] + " *")" Variant="Variant.Outlined" FullWidth="true" />
             </MudItem>
             <MudItem xs="12" sm="6">
-                <MudTextField @bind-Value="_form.Rut" Label="RUT" Variant="Variant.Outlined" FullWidth="true" />
+                <MudTextField @bind-Value="_form.Rut" Label="@L["common.rut"]" Variant="Variant.Outlined" FullWidth="true" />
             </MudItem>
             <MudItem xs="12" sm="6">
-                <MudSelect @bind-Value="_form.CompanyType" Label="Tipo *" Variant="Variant.Outlined" FullWidth="true">
-                    <MudSelectItem Value="@("Contratista")">Contratista</MudSelectItem>
-                    <MudSelectItem Value="@("Mandante")">Mandante</MudSelectItem>
-                    <MudSelectItem Value="@("Inspeccion")">Inspección</MudSelectItem>
-                    <MudSelectItem Value="@("Subcontratista")">Subcontratista</MudSelectItem>
+                <MudSelect @bind-Value="_form.CompanyType" Label="@(L["common.type"] + " *")" Variant="Variant.Outlined" FullWidth="true">
+                    <MudSelectItem Value="@("Contratista")">@L["companies.type_contractor"]</MudSelectItem>
+                    <MudSelectItem Value="@("Mandante")">@L["companies.type_mandante"]</MudSelectItem>
+                    <MudSelectItem Value="@("Inspeccion")">@L["companies.type_inspection"]</MudSelectItem>
+                    <MudSelectItem Value="@("Subcontratista")">@L["companies.type_subcontractor"]</MudSelectItem>
                 </MudSelect>
             </MudItem>
             <MudItem xs="12">
-                <MudTextField @bind-Value="_form.Email" Label="Email" Variant="Variant.Outlined" FullWidth="true" />
+                <MudTextField @bind-Value="_form.Email" Label="@L["common.email"]" Variant="Variant.Outlined" FullWidth="true" />
             </MudItem>
             <MudItem xs="12" sm="6">
-                <MudTextField @bind-Value="_form.Phone" Label="Teléfono" Variant="Variant.Outlined" FullWidth="true" />
+                <MudTextField @bind-Value="_form.Phone" Label="@L["common.phone"]" Variant="Variant.Outlined" FullWidth="true" />
             </MudItem>
             <MudItem xs="12" sm="6">
-                <MudTextField @bind-Value="_form.City" Label="Ciudad" Variant="Variant.Outlined" FullWidth="true" />
+                <MudTextField @bind-Value="_form.City" Label="@L["common.city"]" Variant="Variant.Outlined" FullWidth="true" />
             </MudItem>
             @if (_editId.HasValue)
             {
                 <MudItem xs="12">
-                    <MudSwitch @bind-Value="_form.IsActive" Label="Activa" Color="Color.Success" />
+                    <MudSwitch @bind-Value="_form.IsActive" Label="@L["common.active_f"]" Color="Color.Success" />
                 </MudItem>
             }
         </MudGrid>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="() => _showDialog = false">Cancelar</MudButton>
+        <MudButton OnClick="() => _showDialog = false">@L["common.cancel"]</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveCompany" Disabled="_saving">
-            @(_saving ? "Guardando..." : "Guardar")
+            @(_saving ? L["common.saving"] : L["common.save"])
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -109,13 +117,22 @@
     private Guid?  _editId;
     private CompanyForm _form = new();
 
-    protected override async Task OnInitializedAsync() => await LoadCompanies();
+    protected override async Task OnInitializedAsync()
+    {
+        L.OnChange += StateHasChanged;
+        await LoadCompanies();
+    }
+
+    public void Dispose()
+    {
+        L.OnChange -= StateHasChanged;
+    }
 
     private async Task LoadCompanies()
     {
         _loading = true;
         try   { _companies = await Api.GetCompaniesAsync(); }
-        catch { Snackbar.Add("Error cargando empresas", Severity.Error); }
+        catch { Snackbar.Add(L["companies.error_loading"], Severity.Error); }
         finally { _loading = false; }
     }
 
@@ -150,7 +167,7 @@
                 _form.IsActive    = detail.IsActive;
             }
         }
-        catch { Snackbar.Add("Error cargando empresa", Severity.Error); }
+        catch { Snackbar.Add(L["companies.error_loading"], Severity.Error); }
     }
 
     private async Task SaveCompany()
@@ -180,15 +197,15 @@
 
         _saving     = false;
         _showDialog = false;
-        if (ok) { Snackbar.Add(_editId.HasValue ? "Empresa actualizada" : "Empresa creada", Severity.Success); await LoadCompanies(); }
-        else    Snackbar.Add("Error al guardar empresa", Severity.Error);
+        if (ok) { Snackbar.Add(_editId.HasValue ? L["companies.updated"] : L["companies.created"], Severity.Success); await LoadCompanies(); }
+        else    Snackbar.Add(L["companies.error_saving"], Severity.Error);
     }
 
     private async Task DeleteCompany(Guid id)
     {
         var ok = await Api.DeleteCompanyAsync(id);
-        if (ok) { Snackbar.Add("Empresa eliminada", Severity.Success); await LoadCompanies(); }
-        else    Snackbar.Add("Error al eliminar", Severity.Error);
+        if (ok) { Snackbar.Add(L["companies.deleted"], Severity.Success); await LoadCompanies(); }
+        else    Snackbar.Add(L["common.error_deleting"], Severity.Error);
     }
 
     private class CompanyForm

@@ -1,5 +1,4 @@
 using AutoMapper;
-using AutoMapper.QueryableExtensions;
 using ITO.Cloud.Application.Common.Exceptions;
 using ITO.Cloud.Application.Common.Models;
 using ITO.Cloud.Application.Features.Companies.DTOs;
@@ -27,14 +26,13 @@ public class GetCompaniesQueryHandler : IRequestHandler<GetCompaniesQuery, Pagin
             query = query.Where(c => c.IsActive == request.IsActive.Value);
 
         var total = await query.CountAsync(cancellationToken);
-        var items = await query
+        var entities = await query
             .OrderBy(c => c.Name)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
-            .ProjectTo<CompanyDto>(_mapper.ConfigurationProvider)
             .ToListAsync(cancellationToken);
 
-        return PaginatedList<CompanyDto>.Create(items, total, request.Page, request.PageSize);
+        return PaginatedList<CompanyDto>.Create(_mapper.Map<List<CompanyDto>>(entities), total, request.Page, request.PageSize);
     }
 }
 

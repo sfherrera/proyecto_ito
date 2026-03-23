@@ -1,13 +1,18 @@
 @page "/"
-
+@attribute [Authorize]
+@implements IDisposable
 
 @inject ItoApiService Api
 
 <PageTitle>Dashboard — ITO Cloud</PageTitle>
 
-<MudText Typo="Typo.h5" Class="mb-4">
-    <MudIcon Icon="@Icons.Material.Filled.Dashboard" Class="mr-2" />Dashboard
-</MudText>
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">
+        <MudIcon Icon="@Icons.Material.Filled.Dashboard" Class="mr-2" />Dashboard
+    </MudText>
+    <MudSpacer />
+    <HelpButton Module="dashboard" />
+</MudStack>
 
 @if (_loading)
 {
@@ -22,6 +27,7 @@
 }
 else if (_data != null)
 {
+    @* ── KPIs ────────────────────────────────────────────────────────────── *@
     <MudGrid>
         <MudItem xs="12" sm="6" md="4">
             <MudPaper Elevation="2" Class="pa-4">
@@ -29,7 +35,7 @@ else if (_data != null)
                     <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Primary" Size="Size.Large" />
                     <div>
                         <MudText Typo="Typo.h4">@_data.TotalInspections</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Total Inspecciones</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["dashboard.total_inspections"]</MudText>
                     </div>
                 </MudStack>
             </MudPaper>
@@ -41,7 +47,7 @@ else if (_data != null)
                     <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Info" Size="Size.Large" />
                     <div>
                         <MudText Typo="Typo.h4">@_data.InspectionsThisMonth</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Este Mes</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["dashboard.this_month"]</MudText>
                     </div>
                 </MudStack>
             </MudPaper>
@@ -53,7 +59,7 @@ else if (_data != null)
                     <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Warning" Size="Size.Large" />
                     <div>
                         <MudText Typo="Typo.h4">@_data.OpenObservations</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Observaciones Abiertas</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["dashboard.open_observations"]</MudText>
                     </div>
                 </MudStack>
             </MudPaper>
@@ -65,7 +71,7 @@ else if (_data != null)
                     <MudIcon Icon="@Icons.Material.Filled.Error" Color="Color.Error" Size="Size.Large" />
                     <div>
                         <MudText Typo="Typo.h4">@_data.CriticalObservations</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Críticas</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["dashboard.critical"]</MudText>
                     </div>
                 </MudStack>
             </MudPaper>
@@ -77,7 +83,7 @@ else if (_data != null)
                     <MudIcon Icon="@Icons.Material.Filled.Schedule" Color="Color.Error" Size="Size.Large" />
                     <div>
                         <MudText Typo="Typo.h4">@_data.OverdueObservations</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Vencidas</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["dashboard.overdue"]</MudText>
                     </div>
                 </MudStack>
             </MudPaper>
@@ -89,29 +95,123 @@ else if (_data != null)
                     <MudIcon Icon="@Icons.Material.Filled.Verified" Color="Color.Success" Size="Size.Large" />
                     <div>
                         <MudText Typo="Typo.h4">@_data.ComplianceRate.ToString("F1")%</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Tasa Cumplimiento</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["dashboard.compliance_rate"]</MudText>
                     </div>
                 </MudStack>
             </MudPaper>
         </MudItem>
     </MudGrid>
 
+    @* ── Charts ──────────────────────────────────────────────────────────── *@
+    <MudGrid Class="mt-4">
+        @* Inspecciones por Semana (Line chart) *@
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.subtitle1" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Timeline" Class="mr-1" Size="Size.Small" />
+                    @L["dashboard.inspections_by_week"]
+                </MudText>
+                @if (_weekLabels.Length > 0)
+                {
+                    <MudChart T="double"
+                              ChartType="ChartType.Line"
+                              ChartSeries="@_weekSeries"
+                              XAxisLabels="@_weekLabels"
+                              Width="100%" Height="280px"
+                              ChartOptions="@_lineOptions" />
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["dashboard.no_inspections_data"]</MudText>
+                }
+            </MudPaper>
+        </MudItem>
+
+        @* Observaciones por Severidad (Donut chart) *@
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.subtitle1" Class="mb-3">
+                    <MudIcon Icon="@Icons.Material.Filled.DonutLarge" Class="mr-1" Size="Size.Small" />
+                    @L["dashboard.observations_by_severity"]
+                </MudText>
+                @if (_severityData.Length > 0)
+                {
+                    <MudChart T="double"
+                              ChartType="ChartType.Donut"
+                              InputData="@_severityData"
+                              InputLabels="@_severityLabels"
+                              Width="100%" Height="280px" />
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">@L["dashboard.no_observations_data"]</MudText>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    @* ── Cumplimiento por Contratista ────────────────────────────────────── *@
+    @if (_data.ContractorCompliance is { Count: > 0 })
+    {
+        <MudGrid Class="mt-4">
+            <MudItem xs="12">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <MudText Typo="Typo.subtitle1" Class="mb-3">
+                        <MudIcon Icon="@Icons.Material.Filled.Engineering" Class="mr-1" Size="Size.Small" />
+                        @L["dashboard.contractor_compliance"]
+                    </MudText>
+                    <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                        <thead>
+                            <tr>
+                                <th>@L["dashboard.contractor"]</th>
+                                <th style="text-align:center">@L["dashboard.total"]</th>
+                                <th style="text-align:center">@L["dashboard.closed"]</th>
+                                <th style="text-align:center">@L["dashboard.rate"]</th>
+                                <th style="width:40%">@L["dashboard.progress"]</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var c in _data.ContractorCompliance)
+                            {
+                                <tr>
+                                    <td>@c.ContractorName</td>
+                                    <td style="text-align:center">@c.Total</td>
+                                    <td style="text-align:center">@c.Closed</td>
+                                    <td style="text-align:center">@c.Rate.ToString("F1")%</td>
+                                    <td>
+                                        <MudProgressLinear Color="@(c.Rate >= 80 ? Color.Success : c.Rate >= 50 ? Color.Warning : Color.Error)"
+                                                           Value="@c.Rate" Max="100" Rounded="true" Size="Size.Medium" />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
+
+    @* ── Accesos rapidos y estado ─────────────────────────────────────────── *@
     <MudGrid Class="mt-4">
         <MudItem xs="12" md="6">
             <MudPaper Elevation="2" Class="pa-4">
-                <MudText Typo="Typo.subtitle1" Class="mb-3">Accesos Rápidos</MudText>
+                <MudText Typo="Typo.subtitle1" Class="mb-3">@L["dashboard.quick_access"]</MudText>
                 <MudStack>
                     <MudButton Href="/inspections" Variant="Variant.Outlined" Color="Color.Primary"
                                StartIcon="@Icons.Material.Filled.Add" FullWidth="true">
-                        Nueva Inspección
+                        @L["dashboard.new_inspection"]
                     </MudButton>
                     <MudButton Href="/observations" Variant="Variant.Outlined" Color="Color.Warning"
                                StartIcon="@Icons.Material.Filled.Warning" FullWidth="true">
-                        Ver Observaciones
+                        @L["dashboard.view_observations"]
                     </MudButton>
                     <MudButton Href="/projects" Variant="Variant.Outlined" Color="Color.Secondary"
                                StartIcon="@Icons.Material.Filled.AccountTree" FullWidth="true">
-                        Ver Proyectos
+                        @L["dashboard.view_projects"]
+                    </MudButton>
+                    <MudButton Href="/reports" Variant="Variant.Outlined" Color="Color.Info"
+                               StartIcon="@Icons.Material.Filled.Assessment" FullWidth="true">
+                        @L["dashboard.generate_reports"]
                     </MudButton>
                 </MudStack>
             </MudPaper>
@@ -119,18 +219,27 @@ else if (_data != null)
 
         <MudItem xs="12" md="6">
             <MudPaper Elevation="2" Class="pa-4">
-                <MudText Typo="Typo.subtitle1" Class="mb-3">Estado del Sistema</MudText>
+                <MudText Typo="Typo.subtitle1" Class="mb-3">@L["dashboard.system_status"]</MudText>
                 <MudList T="string" Dense="true">
                     <MudListItem Icon="@Icons.Material.Filled.Circle" IconColor="Color.Success">
-                        API: Conectada
+                        @L["dashboard.api_connected"]
                     </MudListItem>
                     <MudListItem Icon="@Icons.Material.Filled.Circle" IconColor="Color.Success">
-                        Base de datos: PostgreSQL
+                        @L["dashboard.database"]
                     </MudListItem>
                     <MudListItem Icon="@Icons.Material.Filled.Circle" IconColor="Color.Info">
-                        Última actualización: @DateTime.Now.ToString("HH:mm")
+                        @L["dashboard.last_update"] @DateTime.Now.ToString("HH:mm")
                     </MudListItem>
                 </MudList>
+                <MudDivider Class="my-2" />
+                <MudStack Row="true" Spacing="2">
+                    <MudChip T="string" Color="Color.Info" Size="Size.Small">
+                        @string.Format(L["dashboard.avg_closing"], _data.AverageClosingDays)
+                    </MudChip>
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small">
+                        @string.Format(L["dashboard.closed_this_month"], _data.ClosedObservationsThisMonth)
+                    </MudChip>
+                </MudStack>
             </MudPaper>
         </MudItem>
     </MudGrid>
@@ -138,12 +247,12 @@ else if (_data != null)
 else
 {
     <MudAlert Severity="Severity.Warning" Class="mb-3">
-        No se pudo conectar a la API. Verifique que el proyecto <strong>ITO.Cloud.API</strong> esté en ejecución.
+        @((MarkupString)L["dashboard.api_error"])
     </MudAlert>
     <MudButton Variant="Variant.Filled" Color="Color.Primary"
                StartIcon="@Icons.Material.Filled.Refresh"
                OnClick="Reload">
-        Reconectar
+        @L["app.reconnect"]
     </MudButton>
 }
 
@@ -151,7 +260,24 @@ else
     private DashboardDto? _data;
     private bool _loading = true;
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    // Chart data
+    private string[] _weekLabels = [];
+    private List<ChartSeries<double>> _weekSeries = [];
+    private ChartOptions _lineOptions = new();
+
+    private double[] _severityData = [];
+    private string[] _severityLabels = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        L.OnChange += StateHasChanged;
+        await LoadAsync();
+    }
+
+    public void Dispose()
+    {
+        L.OnChange -= StateHasChanged;
+    }
 
     private async Task Reload()
     {
@@ -163,7 +289,6 @@ else
 
     private async Task LoadAsync()
     {
-        // 3 intentos con 1.5 s de pausa (máx ~4.5 s extra si API arranca tarde)
         for (int i = 0; i < 3; i++)
         {
             try
@@ -176,6 +301,30 @@ else
             if (i < 2)
                 await Task.Delay(1500);
         }
+
+        if (_data != null)
+            BuildChartData();
+
         _loading = false;
+    }
+
+    private void BuildChartData()
+    {
+        // Inspecciones por semana (Line chart)
+        if (_data?.InspectionsByWeek is { Count: > 0 } weekData)
+        {
+            _weekLabels = weekData.Select(w => w.Label).ToArray();
+            _weekSeries = new List<ChartSeries<double>>
+            {
+                new() { Name = L["dashboard.inspections_series"], Data = weekData.Select(w => (double)w.Value).ToArray() }
+            };
+        }
+
+        // Observaciones por severidad (Donut chart)
+        if (_data?.ObservationsBySeverity is { Count: > 0 } sevData)
+        {
+            _severityLabels = sevData.Select(s => s.Label).ToArray();
+            _severityData   = sevData.Select(s => (double)s.Value).ToArray();
+        }
     }
 }

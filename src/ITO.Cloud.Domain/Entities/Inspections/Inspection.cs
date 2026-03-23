@@ -1,4 +1,6 @@
 using ITO.Cloud.Domain.Common;
+using ITO.Cloud.Domain.Entities.Identity;
+using ITO.Cloud.Domain.Entities.Projects;
 using ITO.Cloud.Domain.Enums;
 
 namespace ITO.Cloud.Domain.Entities.Inspections;
@@ -49,6 +51,8 @@ public class Inspection : TenantEntity
     public string? Notes { get; set; }
 
     // Navegación
+    public ApplicationUser? AssignedTo { get; set; }
+    public Contractor? Contractor { get; set; }
     public ICollection<InspectionAnswer> Answers { get; set; } = [];
     public ICollection<InspectionEvidence> Evidence { get; set; } = [];
 }

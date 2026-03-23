@@ -1,0 +1,60 @@
+@* Dialog for creating/editing a project sector *@
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">@(IsEdit ? "Editar Sector" : "Nuevo Sector")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="Name" Label="Nombre *" Variant="Variant.Outlined" FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect @bind-Value="SectorType" Label="Tipo" Variant="Variant.Outlined" FullWidth="true">
+                    <MudSelectItem Value="@("sector")">Sector</MudSelectItem>
+                    <MudSelectItem Value="@("torre")">Torre</MudSelectItem>
+                    <MudSelectItem Value="@("bloque")">Bloque</MudSelectItem>
+                    <MudSelectItem Value="@("piso")">Piso</MudSelectItem>
+                    <MudSelectItem Value="@("area_comun")">Área Común</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudNumericField @bind-Value="OrderIndex" Label="Orden" Variant="Variant.Outlined" FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudSelect T="Guid?" @bind-Value="ParentSectorId" Label="Sector Padre"
+                           Variant="Variant.Outlined" FullWidth="true" Clearable="true">
+                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">Ninguno</MudSelectItem>
+                    @foreach (var s in (AvailableSectors ?? new List<SectorDto>()))
+                    {
+                        <MudSelectItem T="Guid?" Value="@s.Id">@s.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Submit"
+                   Disabled="@string.IsNullOrWhiteSpace(Name)">
+            @(IsEdit ? "Guardar" : "Crear")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter] public bool IsEdit { get; set; }
+    [Parameter] public string Name { get; set; } = string.Empty;
+    [Parameter] public string SectorType { get; set; } = "sector";
+    [Parameter] public int OrderIndex { get; set; }
+    [Parameter] public Guid? ParentSectorId { get; set; }
+    [Parameter] public List<SectorDto>? AvailableSectors { get; set; }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Submit()
+    {
+        MudDialog.Close(DialogResult.Ok(new SectorDialogResult(Name, SectorType, OrderIndex, ParentSectorId)));
+    }
+}

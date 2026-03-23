@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Photos taken with the camera -->
+    <cache-path
+        name="camera_photos"
+        path="photos/" />
+
+    <!-- Exported files in external cache -->
+    <external-cache-path
+        name="external_cache"
+        path="." />
+
+    <!-- Files directory for general app files -->
+    <files-path
+        name="internal_files"
+        path="." />
+
+    <!-- External files directory -->
+    <external-files-path
+        name="external_files"
+        path="." />
+</paths>

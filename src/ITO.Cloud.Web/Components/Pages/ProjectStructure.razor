@@ -1,0 +1,444 @@
+@page "/projects/{Id:guid}/structure"
+@attribute [Authorize(Roles = "SuperAdmin,AdminTenant,Director,Supervisor")]
+@implements IDisposable
+
+@inject ItoApiService Api
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject NavigationManager Nav
+
+<PageTitle>@L["structure.title"] — ITO Cloud</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_project == null)
+{
+    <MudAlert Severity="Severity.Error">@L["projects.not_found"]</MudAlert>
+}
+else
+{
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                       OnClick='() => Nav.NavigateTo($"/projects/{Id}")' />
+        <MudText Typo="Typo.h5">@L["structure.title"] — @_project.Name</MudText>
+    </MudStack>
+
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+        <!-- TAB: ETAPAS -->
+        <MudTabPanel Text="@L["structure.stages"]" Icon="@Icons.Material.Filled.Layers">
+            <MudStack Row="true" Justify="Justify.FlexEnd" Class="mb-3">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="OpenCreateStageDialog">@L["structure.add_stage"]</MudButton>
+            </MudStack>
+            <MudTable Items="_stages" Hover="true" Dense="true" Striped="true" Loading="_loadingStages">
+                <HeaderContent>
+                    <MudTh>@L["common.order"]</MudTh>
+                    <MudTh>@L["common.name"]</MudTh>
+                    <MudTh>@L["common.status"]</MudTh>
+                    <MudTh>@L["common.start_date"]</MudTh>
+                    <MudTh>@L["common.end_date"]</MudTh>
+                    <MudTh Style="width:140px">@L["common.actions"]</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.OrderIndex</MudTd>
+                    <MudTd>@context.Name</MudTd>
+                    <MudTd>
+                        <MudChip T="string" Size="Size.Small" Color="@GetStageStatusColor(context.Status)">
+                            @context.Status
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>@(context.StartDate ?? "—")</MudTd>
+                    <MudTd>@(context.EndDate ?? "—")</MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                       OnClick="() => OpenEditStageDialog(context)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                       Color="Color.Error" OnClick="() => DeleteStage(context)" />
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body2">@L["structure.no_stages"]</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        </MudTabPanel>
+
+        <!-- TAB: SECTORES -->
+        <MudTabPanel Text="@L["structure.sectors"]" Icon="@Icons.Material.Filled.Domain">
+            <MudStack Row="true" Justify="Justify.FlexEnd" Class="mb-3">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="OpenCreateSectorDialog">@L["structure.add_sector"]</MudButton>
+            </MudStack>
+            <MudTable Items="_sectors" Hover="true" Dense="true" Striped="true" Loading="_loadingSectors">
+                <HeaderContent>
+                    <MudTh>@L["common.order"]</MudTh>
+                    <MudTh>@L["common.name"]</MudTh>
+                    <MudTh>@L["common.type"]</MudTh>
+                    <MudTh>@L["structure.parent_sector"]</MudTh>
+                    <MudTh Style="width:140px">@L["common.actions"]</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.OrderIndex</MudTd>
+                    <MudTd>@context.Name</MudTd>
+                    <MudTd>@context.SectorType</MudTd>
+                    <MudTd>@(GetSectorName(context.ParentSectorId))</MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                       OnClick="() => OpenEditSectorDialog(context)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                       Color="Color.Error" OnClick="() => DeleteSector(context)" />
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body2">@L["structure.no_sectors"]</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        </MudTabPanel>
+
+        <!-- TAB: UNIDADES -->
+        <MudTabPanel Text="@L["structure.units"]" Icon="@Icons.Material.Filled.Apartment">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+                <MudSelect T="Guid?" @bind-Value="_filterSectorId" @bind-Value:after="LoadUnits"
+                           Label="@L["structure.filter_by_sector"]"
+                           Variant="Variant.Outlined" Clearable="true" Style="max-width:300px">
+                    <MudSelectItem T="Guid?" Value="@((Guid?)null)">@L["common.all"]</MudSelectItem>
+                    @foreach (var s in _sectors)
+                    {
+                        <MudSelectItem T="Guid?" Value="@s.Id">@s.Name</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="OpenCreateUnitDialog">@L["structure.add_unit"]</MudButton>
+            </MudStack>
+            <MudTable Items="_units" Hover="true" Dense="true" Striped="true" Loading="_loadingUnits">
+                <HeaderContent>
+                    <MudTh>@L["common.code"]</MudTh>
+                    <MudTh>@L["common.type"]</MudTh>
+                    <MudTh>@L["structure.floor"]</MudTh>
+                    <MudTh>@L["structure.surface_m2"]</MudTh>
+                    <MudTh>@L["common.status"]</MudTh>
+                    <MudTh>@L["structure.sector"]</MudTh>
+                    <MudTh Style="width:140px">@L["common.actions"]</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.UnitCode</MudTd>
+                    <MudTd>@context.UnitType</MudTd>
+                    <MudTd>@(context.Floor?.ToString() ?? "—")</MudTd>
+                    <MudTd>@(context.SurfaceM2?.ToString("N2") ?? "—")</MudTd>
+                    <MudTd>
+                        <MudChip T="string" Size="Size.Small" Color="@GetUnitStatusColor(context.Status)">
+                            @context.Status
+                        </MudChip>
+                    </MudTd>
+                    <MudTd>@(GetSectorName(context.SectorId))</MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                       OnClick="() => OpenEditUnitDialog(context)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                       Color="Color.Error" OnClick="() => DeleteUnit(context)" />
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Typo="Typo.body2">@L["structure.no_units"]</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        </MudTabPanel>
+    </MudTabs>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private ProjectDetailDto? _project;
+    private List<StageDto> _stages = [];
+    private List<SectorDto> _sectors = [];
+    private List<UnitDto> _units = [];
+    private bool _loading = true;
+    private bool _loadingStages, _loadingSectors, _loadingUnits;
+    private Guid? _filterSectorId;
+
+    protected override void OnInitialized()
+    {
+        L.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        L.OnChange -= StateHasChanged;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _project = await Api.GetProjectByIdAsync(Id);
+            if (_project != null)
+            {
+                await Task.WhenAll(LoadStages(), LoadSectors(), LoadUnits());
+            }
+        }
+        catch { Snackbar.Add(L["structure.error_loading_project"], Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    // Loaders
+
+    private async Task LoadStages()
+    {
+        _loadingStages = true;
+        try { _stages = await Api.GetProjectStagesAsync(Id); }
+        catch { Snackbar.Add(L["structure.error_loading_stages"], Severity.Error); }
+        finally { _loadingStages = false; }
+    }
+
+    private async Task LoadSectors()
+    {
+        _loadingSectors = true;
+        try { _sectors = await Api.GetProjectSectorsAsync(Id); }
+        catch { Snackbar.Add(L["structure.error_loading_sectors"], Severity.Error); }
+        finally { _loadingSectors = false; }
+    }
+
+    private async Task LoadUnits()
+    {
+        _loadingUnits = true;
+        try { _units = await Api.GetProjectUnitsAsync(Id, _filterSectorId); }
+        catch { Snackbar.Add(L["structure.error_loading_units"], Severity.Error); }
+        finally { _loadingUnits = false; }
+    }
+
+    private async Task<bool> ConfirmDeleteAsync(string title, string message)
+    {
+        var parameters = new DialogParameters<ConfirmDeleteDialog>
+        {
+            { x => x.Message, message }
+        };
+        var dialog = await DialogService.ShowAsync<ConfirmDeleteDialog>(title, parameters,
+            new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
+        var result = await dialog.Result;
+        return result != null && !result.Canceled;
+    }
+
+    // Helpers
+
+    private string GetSectorName(Guid? sectorId) =>
+        sectorId.HasValue ? _sectors.FirstOrDefault(s => s.Id == sectorId.Value)?.Name ?? "—" : "—";
+
+    private static Color GetStageStatusColor(string s) => s switch
+    {
+        "en_progreso" => Color.Primary,
+        "completada"  => Color.Success,
+        "pendiente"   => Color.Default,
+        _             => Color.Info
+    };
+
+    private static Color GetUnitStatusColor(string s) => s switch
+    {
+        "construccion" => Color.Warning,
+        "terminada"    => Color.Success,
+        "entregada"    => Color.Primary,
+        _              => Color.Default
+    };
+
+    // STAGES DIALOGS
+
+    private async Task OpenCreateStageDialog()
+    {
+        var parameters = new DialogParameters<StageDialog>
+        {
+            { x => x.IsEdit, false },
+            { x => x.Name, "" },
+            { x => x.Description, null },
+            { x => x.OrderIndex, _stages.Count },
+            { x => x.Status, "pendiente" },
+            { x => x.StartDate, null },
+            { x => x.EndDate, null }
+        };
+        var dialog = await DialogService.ShowAsync<StageDialog>(L["structure.new_stage"], parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled && result.Data is StageDialogResult data)
+        {
+            var ok = await Api.CreateProjectStageAsync(Id, new
+            {
+                data.Name, data.Description, data.OrderIndex, data.Status,
+                StartDate = data.StartDate?.ToString("yyyy-MM-dd"),
+                EndDate   = data.EndDate?.ToString("yyyy-MM-dd")
+            });
+            if (ok) { Snackbar.Add(L["structure.stage_created"], Severity.Success); await LoadStages(); }
+            else Snackbar.Add(L["structure.error_creating_stage"], Severity.Error);
+        }
+    }
+
+    private async Task OpenEditStageDialog(StageDto stage)
+    {
+        var parameters = new DialogParameters<StageDialog>
+        {
+            { x => x.IsEdit, true },
+            { x => x.Name, stage.Name },
+            { x => x.Description, null },
+            { x => x.OrderIndex, stage.OrderIndex },
+            { x => x.Status, stage.Status },
+            { x => x.StartDate, string.IsNullOrEmpty(stage.StartDate) ? null : DateOnly.Parse(stage.StartDate) },
+            { x => x.EndDate, string.IsNullOrEmpty(stage.EndDate) ? null : DateOnly.Parse(stage.EndDate) }
+        };
+        var dialog = await DialogService.ShowAsync<StageDialog>(L["structure.edit_stage"], parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled && result.Data is StageDialogResult data)
+        {
+            var ok = await Api.UpdateProjectStageAsync(Id, stage.Id, new
+            {
+                data.Name, data.Description, data.OrderIndex, data.Status,
+                StartDate = data.StartDate?.ToString("yyyy-MM-dd"),
+                EndDate   = data.EndDate?.ToString("yyyy-MM-dd")
+            });
+            if (ok) { Snackbar.Add(L["structure.stage_updated"], Severity.Success); await LoadStages(); }
+            else Snackbar.Add(L["structure.error_updating_stage"], Severity.Error);
+        }
+    }
+
+    private async Task DeleteStage(StageDto stage)
+    {
+        if (await ConfirmDeleteAsync(L["structure.delete_stage"], string.Format(L["structure.delete_stage_confirm"], stage.Name)))
+        {
+            var ok = await Api.DeleteProjectStageAsync(Id, stage.Id);
+            if (ok) { Snackbar.Add(L["structure.stage_deleted"], Severity.Success); await LoadStages(); }
+            else Snackbar.Add(L["structure.error_deleting_stage"], Severity.Error);
+        }
+    }
+
+    // SECTORS DIALOGS
+
+    private async Task OpenCreateSectorDialog()
+    {
+        var parameters = new DialogParameters<SectorDialog>
+        {
+            { x => x.IsEdit, false },
+            { x => x.Name, "" },
+            { x => x.SectorType, "sector" },
+            { x => x.OrderIndex, _sectors.Count },
+            { x => x.ParentSectorId, null },
+            { x => x.AvailableSectors, _sectors }
+        };
+        var dialog = await DialogService.ShowAsync<SectorDialog>(L["structure.new_sector"], parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled && result.Data is SectorDialogResult data)
+        {
+            var ok = await Api.CreateProjectSectorAsync(Id, new
+            {
+                data.Name, data.SectorType, data.OrderIndex, data.ParentSectorId
+            });
+            if (ok) { Snackbar.Add(L["structure.sector_created"], Severity.Success); await LoadSectors(); }
+            else Snackbar.Add(L["structure.error_creating_sector"], Severity.Error);
+        }
+    }
+
+    private async Task OpenEditSectorDialog(SectorDto sector)
+    {
+        var parameters = new DialogParameters<SectorDialog>
+        {
+            { x => x.IsEdit, true },
+            { x => x.Name, sector.Name },
+            { x => x.SectorType, sector.SectorType },
+            { x => x.OrderIndex, sector.OrderIndex },
+            { x => x.ParentSectorId, sector.ParentSectorId },
+            { x => x.AvailableSectors, _sectors.Where(s => s.Id != sector.Id).ToList() }
+        };
+        var dialog = await DialogService.ShowAsync<SectorDialog>(L["structure.edit_sector"], parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled && result.Data is SectorDialogResult data)
+        {
+            var ok = await Api.UpdateProjectSectorAsync(Id, sector.Id, new
+            {
+                data.Name, data.SectorType, data.OrderIndex, data.ParentSectorId
+            });
+            if (ok) { Snackbar.Add(L["structure.sector_updated"], Severity.Success); await LoadSectors(); }
+            else Snackbar.Add(L["structure.error_updating_sector"], Severity.Error);
+        }
+    }
+
+    private async Task DeleteSector(SectorDto sector)
+    {
+        if (await ConfirmDeleteAsync(L["structure.delete_sector"], string.Format(L["structure.delete_sector_confirm"], sector.Name)))
+        {
+            var ok = await Api.DeleteProjectSectorAsync(Id, sector.Id);
+            if (ok) { Snackbar.Add(L["structure.sector_deleted"], Severity.Success); await LoadSectors(); }
+            else Snackbar.Add(L["structure.error_deleting_sector"], Severity.Error);
+        }
+    }
+
+    // UNITS DIALOGS
+
+    private async Task OpenCreateUnitDialog()
+    {
+        var parameters = new DialogParameters<UnitDialog>
+        {
+            { x => x.IsEdit, false },
+            { x => x.UnitCode, "" },
+            { x => x.UnitType, "departamento" },
+            { x => x.SectorId, _filterSectorId },
+            { x => x.Floor, null },
+            { x => x.SurfaceM2, null },
+            { x => x.Status, "construccion" },
+            { x => x.AvailableSectors, _sectors }
+        };
+        var dialog = await DialogService.ShowAsync<UnitDialog>(L["structure.new_unit"], parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled && result.Data is UnitDialogResult data)
+        {
+            var ok = await Api.CreateProjectUnitAsync(Id, new
+            {
+                data.UnitCode, data.UnitType, data.SectorId,
+                data.Floor, data.SurfaceM2, data.Status
+            });
+            if (ok) { Snackbar.Add(L["structure.unit_created"], Severity.Success); await LoadUnits(); }
+            else Snackbar.Add(L["structure.error_creating_unit"], Severity.Error);
+        }
+    }
+
+    private async Task OpenEditUnitDialog(UnitDto unit)
+    {
+        var parameters = new DialogParameters<UnitDialog>
+        {
+            { x => x.IsEdit, true },
+            { x => x.UnitCode, unit.UnitCode },
+            { x => x.UnitType, unit.UnitType },
+            { x => x.SectorId, unit.SectorId },
+            { x => x.Floor, unit.Floor },
+            { x => x.SurfaceM2, unit.SurfaceM2 },
+            { x => x.Status, unit.Status },
+            { x => x.AvailableSectors, _sectors }
+        };
+        var dialog = await DialogService.ShowAsync<UnitDialog>(L["structure.edit_unit"], parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true });
+        var result = await dialog.Result;
+        if (result != null && !result.Canceled && result.Data is UnitDialogResult data)
+        {
+            var ok = await Api.UpdateProjectUnitAsync(Id, unit.Id, new
+            {
+                data.UnitCode, data.UnitType, data.SectorId,
+                data.Floor, data.SurfaceM2, data.Status
+            });
+            if (ok) { Snackbar.Add(L["structure.unit_updated"], Severity.Success); await LoadUnits(); }
+            else Snackbar.Add(L["structure.error_updating_unit"], Severity.Error);
+        }
+    }
+
+    private async Task DeleteUnit(UnitDto unit)
+    {
+        if (await ConfirmDeleteAsync(L["structure.delete_unit"], string.Format(L["structure.delete_unit_confirm"], unit.UnitCode)))
+        {
+            var ok = await Api.DeleteProjectUnitAsync(Id, unit.Id);
+            if (ok) { Snackbar.Add(L["structure.unit_deleted"], Severity.Success); await LoadUnits(); }
+            else Snackbar.Add(L["structure.error_deleting_unit"], Severity.Error);
+        }
+    }
+}

@@ -1,0 +1,72 @@
+@inject NavigationManager Nav
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center">
+            <MudIcon Icon="@Icons.Material.Filled.Help" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@GetTitle()</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        @{
+            var (title, desc, items) = GetHelpContent();
+        }
+        <HelpSection Title="@title" Description="@desc" Items="@items" />
+
+        <MudDivider Class="my-3" />
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Color="Color.Info" />
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                @L["app.version"]
+            </MudText>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close" Variant="Variant.Filled" Color="Color.Primary">@L["common.understood"]</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public string Module { get; set; } = "";
+
+    private string GetTitle() => Module switch
+    {
+        "dashboard"          => L["help.dashboard"],
+        "companies"          => L["help.companies"],
+        "projects"           => L["help.projects"],
+        "project-detail"     => L["help.project_detail"],
+        "inspections"        => L["help.inspections"],
+        "inspection-detail"  => L["help.inspection_detail"],
+        "observations"       => L["help.observations"],
+        "observation-detail" => L["help.observation_detail"],
+        "templates"          => L["help.templates"],
+        "template-detail"    => L["help.template_detail"],
+        "users"              => L["help.users"],
+        "specialties"        => L["help.specialties"],
+        "contractors"        => L["help.contractors"],
+        "reports"            => L["help.reports"],
+        _                    => L["help.general"]
+    };
+
+    private (string title, string desc, string[] items) GetHelpContent() => Module switch
+    {
+        "dashboard"          => (L["help.dashboard_title"], L["help.dashboard_desc"], L["help.dashboard_items"].Split('|')),
+        "companies"          => (L["help.companies_title"], L["help.companies_desc"], L["help.companies_items"].Split('|')),
+        "projects"           => (L["help.projects_title"], L["help.projects_desc"], L["help.projects_items"].Split('|')),
+        "project-detail"     => (L["help.project_detail_title"], L["help.project_detail_desc"], L["help.project_detail_items"].Split('|')),
+        "inspections"        => (L["help.inspections_title"], L["help.inspections_desc"], L["help.inspections_items"].Split('|')),
+        "inspection-detail"  => (L["help.inspection_detail_title"], L["help.inspection_detail_desc"], L["help.inspection_detail_items"].Split('|')),
+        "observations"       => (L["help.observations_title"], L["help.observations_desc"], L["help.observations_items"].Split('|')),
+        "observation-detail" => (L["help.observation_detail_title"], L["help.observation_detail_desc"], L["help.observation_detail_items"].Split('|')),
+        "templates"          => (L["help.templates_title"], L["help.templates_desc"], L["help.templates_items"].Split('|')),
+        "template-detail"    => (L["help.template_detail_title"], L["help.template_detail_desc"], L["help.template_detail_items"].Split('|')),
+        "users"              => (L["help.users_title"], L["help.users_desc"], L["help.users_items"].Split('|')),
+        "specialties"        => (L["help.specialties_title"], L["help.specialties_desc"], L["help.specialties_items"].Split('|')),
+        "contractors"        => (L["help.contractors_title"], L["help.contractors_desc"], L["help.contractors_items"].Split('|')),
+        "reports"            => (L["help.reports_title"], L["help.reports_desc"], L["help.reports_items"].Split('|')),
+        _                    => (L["help.general_title"], L["help.general_desc"], L["help.general_items"].Split('|'))
+    };
+
+    private void Close() => MudDialog.Close();
+}

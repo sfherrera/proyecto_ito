@@ -1,0 +1,247 @@
+@page "/reports"
+@attribute [Authorize(Roles = "SuperAdmin,AdminTenant,Director,Supervisor")]
+@implements IDisposable
+
+@inject ItoApiService Api
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>@L["reports.title"] — ITO Cloud</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">
+        <MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" />@L["reports.title"]
+    </MudText>
+    <MudSpacer />
+    <HelpButton Module="reports" />
+</MudStack>
+
+@if (_loading)
+{
+    <MudGrid>
+        <MudItem xs="12" md="6"><MudSkeleton Height="300px" /></MudItem>
+        <MudItem xs="12" md="6"><MudSkeleton Height="300px" /></MudItem>
+    </MudGrid>
+}
+else
+{
+    <MudGrid>
+        @* ── Reporte PDF de Inspeccion ──────────────────────────────────────── *@
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="2" Class="pa-6">
+                <MudStack Spacing="3">
+                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.PictureAsPdf" Color="Color.Error" Size="Size.Large" />
+                        <MudText Typo="Typo.h6">@L["reports.pdf_title"]</MudText>
+                    </MudStack>
+
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                        @L["reports.pdf_description"]
+                    </MudText>
+
+                    <MudSelect T="Guid?" Label="@L["reports.project"]" @bind-Value="_pdfProjectId"
+                               Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter"
+                               Clearable="true" Placeholder="@L["reports.select_project"]">
+                        @foreach (var p in _projects)
+                        {
+                            <MudSelectItem T="Guid?" Value="@p.Id">@p.Code — @p.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    <MudSelect T="Guid?" Label="@L["reports.inspection"]" @bind-Value="_pdfInspectionId"
+                               Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter"
+                               Disabled="@(!_pdfProjectId.HasValue)"
+                               Clearable="true" Placeholder="@(_pdfProjectId.HasValue ? L["reports.select_inspection"] : L["reports.select_project_first"])">
+                        @foreach (var ins in _filteredInspections)
+                        {
+                            <MudSelectItem T="Guid?" Value="@ins.Id">@ins.Code — @ins.Title (@ins.Status)</MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    <MudButton Variant="Variant.Filled" Color="Color.Error"
+                               StartIcon="@Icons.Material.Filled.Download"
+                               Disabled="@(!_pdfInspectionId.HasValue || _downloadingPdf)"
+                               OnClick="DownloadPdf" FullWidth="true">
+                        @if (_downloadingPdf)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            <span>@L["reports.generating_pdf"]</span>
+                        }
+                        else
+                        {
+                            <span>@L["reports.download_pdf"]</span>
+                        }
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        @* ── Reporte Excel de Observaciones ─────────────────────────────────── *@
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="2" Class="pa-6">
+                <MudStack Spacing="3">
+                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.TableChart" Color="Color.Success" Size="Size.Large" />
+                        <MudText Typo="Typo.h6">@L["reports.excel_title"]</MudText>
+                    </MudStack>
+
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                        @L["reports.excel_description"]
+                    </MudText>
+
+                    <MudSelect T="Guid?" Label="@L["reports.project"]" @bind-Value="_excelProjectId"
+                               Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter"
+                               Clearable="true" Placeholder="@L["reports.select_project"]">
+                        @foreach (var p in _projects)
+                        {
+                            <MudSelectItem T="Guid?" Value="@p.Id">@p.Code — @p.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    <MudButton Variant="Variant.Filled" Color="Color.Success"
+                               StartIcon="@Icons.Material.Filled.Download"
+                               Disabled="@(!_excelProjectId.HasValue || _downloadingExcel)"
+                               OnClick="DownloadExcel" FullWidth="true">
+                        @if (_downloadingExcel)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                            <span>@L["reports.generating_excel"]</span>
+                        }
+                        else
+                        {
+                            <span>@L["reports.download_excel"]</span>
+                        }
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private bool _loading = true;
+    private List<ProjectDto> _projects = [];
+    private List<InspectionDto> _filteredInspections = [];
+
+    // PDF section
+    private Guid? _pdfProjectId;
+    private Guid? _pdfInspectionId;
+    private bool _downloadingPdf;
+
+    // Excel section
+    private Guid? _excelProjectId;
+    private bool _downloadingExcel;
+
+    protected override async Task OnInitializedAsync()
+    {
+        L.OnChange += StateHasChanged;
+        try
+        {
+            _projects = await Api.GetProjectsAsync();
+        }
+        catch
+        {
+            Snackbar.Add(L["reports.error_loading_projects"], Severity.Error);
+        }
+        _loading = false;
+    }
+
+    public void Dispose()
+    {
+        L.OnChange -= StateHasChanged;
+    }
+
+    // When PDF project changes, load its inspections
+    private Guid? _lastPdfProjectId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await CheckProjectChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await CheckProjectChanged();
+    }
+
+    private async Task CheckProjectChanged()
+    {
+        if (_pdfProjectId != _lastPdfProjectId)
+        {
+            _lastPdfProjectId = _pdfProjectId;
+            _pdfInspectionId = null;
+            _filteredInspections = [];
+
+            if (_pdfProjectId.HasValue)
+            {
+                try
+                {
+                    _filteredInspections = await Api.GetInspectionsByProjectAsync(_pdfProjectId.Value);
+                }
+                catch
+                {
+                    Snackbar.Add(L["reports.error_loading_inspections"], Severity.Error);
+                }
+            }
+            StateHasChanged();
+        }
+    }
+
+    private async Task DownloadPdf()
+    {
+        if (!_pdfInspectionId.HasValue) return;
+        _downloadingPdf = true;
+        try
+        {
+            var bytes = await Api.DownloadInspectionPdfAsync(_pdfInspectionId.Value);
+            if (bytes == null || bytes.Length == 0)
+            {
+                Snackbar.Add(L["reports.error_generating_pdf"], Severity.Error);
+                return;
+            }
+            await SaveFileAsync(bytes, $"inspeccion_{_pdfInspectionId.Value:N}.pdf", "application/pdf");
+            Snackbar.Add(L["reports.pdf_downloaded"], Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"{L["reports.error_downloading_pdf"]}: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _downloadingPdf = false;
+        }
+    }
+
+    private async Task DownloadExcel()
+    {
+        if (!_excelProjectId.HasValue) return;
+        _downloadingExcel = true;
+        try
+        {
+            var bytes = await Api.DownloadObservationsExcelAsync(_excelProjectId.Value);
+            if (bytes == null || bytes.Length == 0)
+            {
+                Snackbar.Add(L["reports.error_generating_excel"], Severity.Error);
+                return;
+            }
+            await SaveFileAsync(bytes, $"observaciones_{_excelProjectId.Value:N}.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            Snackbar.Add(L["reports.excel_downloaded"], Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"{L["reports.error_downloading_excel"]}: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _downloadingExcel = false;
+        }
+    }
+
+    private async Task SaveFileAsync(byte[] bytes, string fileName, string mimeType)
+    {
+        var base64 = Convert.ToBase64String(bytes);
+        await JS.InvokeVoidAsync("itoSaveFile", base64, fileName, mimeType);
+    }
+}

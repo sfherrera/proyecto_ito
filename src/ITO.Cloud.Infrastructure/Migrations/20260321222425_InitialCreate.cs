@@ -4,7 +4,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace ITO.Cloud.Infrastructure.Persistence.Migrations
+namespace ITO.Cloud.Infrastructure.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration
@@ -87,8 +87,8 @@ namespace ITO.Cloud.Infrastructure.Persistence.Migrations
                     description = table.Column<string>(type: "text", nullable: false),
                     specialty_id = table.Column<Guid>(type: "uuid", nullable: true),
                     category = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    severity = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    severity = table.Column<int>(type: "integer", nullable: false),
+                    status = table.Column<int>(type: "integer", nullable: false),
                     stage_id = table.Column<Guid>(type: "uuid", nullable: true),
                     sector_id = table.Column<Guid>(type: "uuid", nullable: true),
                     unit_id = table.Column<Guid>(type: "uuid", nullable: true),
@@ -517,67 +517,6 @@ namespace ITO.Cloud.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "inspections",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    project_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    template_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    template_version = table.Column<int>(type: "integer", nullable: false),
-                    stage_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    sector_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    unit_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    title = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: false),
-                    description = table.Column<string>(type: "text", nullable: true),
-                    inspection_type = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false, defaultValue: "ordinaria"),
-                    status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    priority = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    scheduled_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    scheduled_end_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    started_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    finished_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    assigned_to_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    assigned_by_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    supervisor_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    contractor_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    specialty_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    score = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: true),
-                    passing_score = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: true),
-                    passed = table.Column<bool>(type: "boolean", nullable: true),
-                    total_questions = table.Column<int>(type: "integer", nullable: false),
-                    answered_questions = table.Column<int>(type: "integer", nullable: false),
-                    conforming_count = table.Column<int>(type: "integer", nullable: false),
-                    non_conforming_count = table.Column<int>(type: "integer", nullable: false),
-                    na_count = table.Column<int>(type: "integer", nullable: false),
-                    latitude = table.Column<decimal>(type: "numeric(10,7)", precision: 10, scale: 7, nullable: true),
-                    longitude = table.Column<decimal>(type: "numeric(10,7)", precision: 10, scale: 7, nullable: true),
-                    weather_conditions = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    temperature = table.Column<decimal>(type: "numeric(4,1)", precision: 4, scale: 1, nullable: true),
-                    is_offline_created = table.Column<bool>(type: "boolean", nullable: false),
-                    sync_id = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    notes = table.Column<string>(type: "text", nullable: true),
-                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    created_by = table.Column<Guid>(type: "uuid", nullable: false),
-                    updated_by = table.Column<Guid>(type: "uuid", nullable: true),
-                    is_deleted = table.Column<bool>(type: "boolean", nullable: false),
-                    deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    deleted_by = table.Column<Guid>(type: "uuid", nullable: true),
-                    tenant_id = table.Column<Guid>(type: "uuid", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_inspections", x => x.id);
-                    table.ForeignKey(
-                        name: "fk_inspections_projects_project_id",
-                        column: x => x.project_id,
-                        principalTable: "projects",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "project_contractors",
                 columns: table => new
                 {
@@ -732,6 +671,79 @@ namespace ITO.Cloud.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "inspections",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    project_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    template_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    template_version = table.Column<int>(type: "integer", nullable: false),
+                    stage_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    sector_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    unit_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    title = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: false),
+                    description = table.Column<string>(type: "text", nullable: true),
+                    inspection_type = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false, defaultValue: "ordinaria"),
+                    status = table.Column<int>(type: "integer", nullable: false),
+                    priority = table.Column<int>(type: "integer", nullable: false),
+                    scheduled_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    scheduled_end_date = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    started_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    finished_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    assigned_to_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    assigned_by_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    supervisor_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    contractor_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    specialty_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    score = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: true),
+                    passing_score = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: true),
+                    passed = table.Column<bool>(type: "boolean", nullable: true),
+                    total_questions = table.Column<int>(type: "integer", nullable: false),
+                    answered_questions = table.Column<int>(type: "integer", nullable: false),
+                    conforming_count = table.Column<int>(type: "integer", nullable: false),
+                    non_conforming_count = table.Column<int>(type: "integer", nullable: false),
+                    na_count = table.Column<int>(type: "integer", nullable: false),
+                    latitude = table.Column<decimal>(type: "numeric(10,7)", precision: 10, scale: 7, nullable: true),
+                    longitude = table.Column<decimal>(type: "numeric(10,7)", precision: 10, scale: 7, nullable: true),
+                    weather_conditions = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    temperature = table.Column<decimal>(type: "numeric(4,1)", precision: 4, scale: 1, nullable: true),
+                    is_offline_created = table.Column<bool>(type: "boolean", nullable: false),
+                    sync_id = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    notes = table.Column<string>(type: "text", nullable: true),
+                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    created_by = table.Column<Guid>(type: "uuid", nullable: false),
+                    updated_by = table.Column<Guid>(type: "uuid", nullable: true),
+                    is_deleted = table.Column<bool>(type: "boolean", nullable: false),
+                    deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    deleted_by = table.Column<Guid>(type: "uuid", nullable: true),
+                    tenant_id = table.Column<Guid>(type: "uuid", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_inspections", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_inspections_contractors_contractor_id",
+                        column: x => x.contractor_id,
+                        principalTable: "contractors",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "fk_inspections_projects_project_id",
+                        column: x => x.project_id,
+                        principalTable: "projects",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "fk_inspections_users_assigned_to_id",
+                        column: x => x.assigned_to_id,
+                        principalTable: "users",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "project_members",
                 columns: table => new
                 {
@@ -849,40 +861,6 @@ namespace ITO.Cloud.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "inspection_answers",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    tenant_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    inspection_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    question_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    answer_value = table.Column<string>(type: "text", nullable: true),
-                    selected_option_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    numeric_value = table.Column<decimal>(type: "numeric", nullable: true),
-                    date_value = table.Column<DateOnly>(type: "date", nullable: true),
-                    is_conforming = table.Column<bool>(type: "boolean", nullable: true),
-                    is_na = table.Column<bool>(type: "boolean", nullable: false),
-                    score = table.Column<decimal>(type: "numeric", nullable: true),
-                    notes = table.Column<string>(type: "text", nullable: true),
-                    latitude = table.Column<decimal>(type: "numeric", nullable: true),
-                    longitude = table.Column<decimal>(type: "numeric", nullable: true),
-                    answered_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    answered_by = table.Column<Guid>(type: "uuid", nullable: true),
-                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_inspection_answers", x => x.id);
-                    table.ForeignKey(
-                        name: "fk_inspection_answers_inspections_inspection_id",
-                        column: x => x.inspection_id,
-                        principalTable: "inspections",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "project_units",
                 columns: table => new
                 {
@@ -944,6 +922,40 @@ namespace ITO.Cloud.Infrastructure.Persistence.Migrations
                         name: "fk_template_question_options_template_questions_question_id",
                         column: x => x.question_id,
                         principalTable: "template_questions",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "inspection_answers",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    tenant_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    inspection_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    question_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    answer_value = table.Column<string>(type: "text", nullable: true),
+                    selected_option_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    numeric_value = table.Column<decimal>(type: "numeric", nullable: true),
+                    date_value = table.Column<DateOnly>(type: "date", nullable: true),
+                    is_conforming = table.Column<bool>(type: "boolean", nullable: true),
+                    is_na = table.Column<bool>(type: "boolean", nullable: false),
+                    score = table.Column<decimal>(type: "numeric", nullable: true),
+                    notes = table.Column<string>(type: "text", nullable: true),
+                    latitude = table.Column<decimal>(type: "numeric", nullable: true),
+                    longitude = table.Column<decimal>(type: "numeric", nullable: true),
+                    answered_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    answered_by = table.Column<Guid>(type: "uuid", nullable: true),
+                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_inspection_answers", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_inspection_answers_inspections_inspection_id",
+                        column: x => x.inspection_id,
+                        principalTable: "inspections",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -1037,6 +1049,11 @@ namespace ITO.Cloud.Infrastructure.Persistence.Migrations
                 name: "ix_inspections_assigned_to_id",
                 table: "inspections",
                 column: "assigned_to_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_inspections_contractor_id",
+                table: "inspections",
+                column: "contractor_id");
 
             migrationBuilder.CreateIndex(
                 name: "ix_inspections_project_id",
@@ -1306,9 +1323,6 @@ namespace ITO.Cloud.Infrastructure.Persistence.Migrations
                 name: "observations");
 
             migrationBuilder.DropTable(
-                name: "contractors");
-
-            migrationBuilder.DropTable(
                 name: "specialties");
 
             migrationBuilder.DropTable(
@@ -1321,25 +1335,28 @@ namespace ITO.Cloud.Infrastructure.Persistence.Migrations
                 name: "roles");
 
             migrationBuilder.DropTable(
-                name: "users");
-
-            migrationBuilder.DropTable(
                 name: "inspections");
 
             migrationBuilder.DropTable(
                 name: "template_sections");
 
             migrationBuilder.DropTable(
-                name: "tenants");
+                name: "contractors");
 
             migrationBuilder.DropTable(
                 name: "projects");
+
+            migrationBuilder.DropTable(
+                name: "users");
 
             migrationBuilder.DropTable(
                 name: "inspection_templates");
 
             migrationBuilder.DropTable(
                 name: "companies");
+
+            migrationBuilder.DropTable(
+                name: "tenants");
         }
     }
 }

@@ -1,5 +1,4 @@
 using AutoMapper;
-using AutoMapper.QueryableExtensions;
 using ITO.Cloud.Application.Common.Exceptions;
 using ITO.Cloud.Application.Common.Models;
 using ITO.Cloud.Application.Features.Inspections.DTOs;
@@ -32,7 +31,19 @@ public class GetInspectionsQueryHandler : IRequestHandler<GetInspectionsQuery, P
             .OrderByDescending(i => i.ScheduledDate)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
-            .ProjectTo<InspectionDto>(_mapper.ConfigurationProvider)
+            .Select(i => new InspectionDto(
+                i.Id, i.ProjectId, i.TemplateId, i.Code, i.Title,
+                i.InspectionType, i.Status, i.Priority,
+                i.ScheduledDate, i.StartedAt, i.FinishedAt,
+                i.AssignedToId,
+                i.AssignedTo != null ? i.AssignedTo.FirstName + " " + i.AssignedTo.LastName : null,
+                i.ContractorId,
+                i.Contractor != null ? i.Contractor.Name : null,
+                i.StageId, i.SectorId, i.UnitId,
+                i.Score, i.Passed,
+                i.TotalQuestions, i.AnsweredQuestions,
+                i.ConformingCount, i.NonConformingCount,
+                i.IsOfflineCreated, i.Notes, i.CreatedAt))
             .ToListAsync(cancellationToken);
 
         return PaginatedList<InspectionDto>.Create(items, total, request.Page, request.PageSize);
@@ -48,13 +59,28 @@ public class GetInspectionByIdQueryHandler : IRequestHandler<GetInspectionByIdQu
 
     public async Task<InspectionDto> Handle(GetInspectionByIdQuery request, CancellationToken cancellationToken)
     {
-        var query = _db.Inspections.AsNoTracking();
+        var query = _db.Inspections
+            .Include(i => i.AssignedTo)
+            .Include(i => i.Contractor)
+            .AsNoTracking();
         if (request.IncludeAnswers) query = query.Include(i => i.Answers).Include(i => i.Evidence);
 
-        var inspection = await query.FirstOrDefaultAsync(i => i.Id == request.Id, cancellationToken)
+        var i = await query.FirstOrDefaultAsync(x => x.Id == request.Id, cancellationToken)
             ?? throw new NotFoundException("Inspección", request.Id);
 
-        return _mapper.Map<InspectionDto>(inspection);
+        return new InspectionDto(
+            i.Id, i.ProjectId, i.TemplateId, i.Code, i.Title,
+            i.InspectionType, i.Status, i.Priority,
+            i.ScheduledDate, i.StartedAt, i.FinishedAt,
+            i.AssignedToId,
+            i.AssignedTo != null ? i.AssignedTo.FirstName + " " + i.AssignedTo.LastName : null,
+            i.ContractorId,
+            i.Contractor != null ? i.Contractor.Name : null,
+            i.StageId, i.SectorId, i.UnitId,
+            i.Score, i.Passed,
+            i.TotalQuestions, i.AnsweredQuestions,
+            i.ConformingCount, i.NonConformingCount,
+            i.IsOfflineCreated, i.Notes, i.CreatedAt);
     }
 }
 
@@ -76,7 +102,19 @@ public class GetMyInspectionsQueryHandler : IRequestHandler<GetMyInspectionsQuer
 
         return await query
             .OrderBy(i => i.ScheduledDate)
-            .ProjectTo<InspectionDto>(_mapper.ConfigurationProvider)
+            .Select(i => new InspectionDto(
+                i.Id, i.ProjectId, i.TemplateId, i.Code, i.Title,
+                i.InspectionType, i.Status, i.Priority,
+                i.ScheduledDate, i.StartedAt, i.FinishedAt,
+                i.AssignedToId,
+                i.AssignedTo != null ? i.AssignedTo.FirstName + " " + i.AssignedTo.LastName : null,
+                i.ContractorId,
+                i.Contractor != null ? i.Contractor.Name : null,
+                i.StageId, i.SectorId, i.UnitId,
+                i.Score, i.Passed,
+                i.TotalQuestions, i.AnsweredQuestions,
+                i.ConformingCount, i.NonConformingCount,
+                i.IsOfflineCreated, i.Notes, i.CreatedAt))
             .ToListAsync(cancellationToken);
     }
 }

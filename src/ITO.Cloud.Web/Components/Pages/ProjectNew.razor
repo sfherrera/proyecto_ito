@@ -1,20 +1,22 @@
 @page "/projects/new"
+@attribute [Authorize(Roles = "SuperAdmin,AdminTenant,Director")]
+@implements IDisposable
 
 @inject ItoApiService Api
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
 
-<PageTitle>Nuevo Proyecto — ITO Cloud</PageTitle>
+<PageTitle>@L["projects.new"] — ITO Cloud</PageTitle>
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" OnClick='() => Nav.NavigateTo("/projects")' />
-    <MudText Typo="Typo.h5">Nuevo Proyecto</MudText>
+    <MudText Typo="Typo.h5">@L["projects.new"]</MudText>
 </MudStack>
 
 <MudPaper Elevation="2" Class="pa-6" Style="max-width:800px">
     <MudGrid>
         <MudItem xs="12" sm="6">
-            <MudSelect @bind-Value="_form.CompanyId" Label="Empresa *" Variant="Variant.Outlined" FullWidth="true">
+            <MudSelect @bind-Value="_form.CompanyId" Label="@(L["projects.company"] + " *")" Variant="Variant.Outlined" FullWidth="true">
                 @foreach (var c in _companies)
                 {
                     <MudSelectItem Value="@c.Id">@c.Name</MudSelectItem>
@@ -22,53 +24,53 @@
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="6">
-            <MudTextField @bind-Value="_form.Code" Label="Código *" Variant="Variant.Outlined" FullWidth="true" />
+            <MudTextField @bind-Value="_form.Code" Label="@(L["common.code"] + " *")" Variant="Variant.Outlined" FullWidth="true" />
         </MudItem>
         <MudItem xs="12">
-            <MudTextField @bind-Value="_form.Name" Label="Nombre *" Variant="Variant.Outlined" FullWidth="true" />
+            <MudTextField @bind-Value="_form.Name" Label="@(L["common.name"] + " *")" Variant="Variant.Outlined" FullWidth="true" />
         </MudItem>
         <MudItem xs="12" sm="6">
-            <MudSelect @bind-Value="_form.ProjectType" Label="Tipo de Proyecto" Variant="Variant.Outlined" FullWidth="true">
-                <MudSelectItem Value="@("edificio")">Edificio</MudSelectItem>
-                <MudSelectItem Value="@("casa")">Casa</MudSelectItem>
-                <MudSelectItem Value="@("infraestructura")">Infraestructura</MudSelectItem>
-                <MudSelectItem Value="@("industrial")">Industrial</MudSelectItem>
-                <MudSelectItem Value="@("comercial")">Comercial</MudSelectItem>
+            <MudSelect @bind-Value="_form.ProjectType" Label="@L["projects.project_type"]" Variant="Variant.Outlined" FullWidth="true">
+                <MudSelectItem Value="@("edificio")">@L["projects.type_building"]</MudSelectItem>
+                <MudSelectItem Value="@("casa")">@L["projects.type_house"]</MudSelectItem>
+                <MudSelectItem Value="@("infraestructura")">@L["projects.type_infrastructure"]</MudSelectItem>
+                <MudSelectItem Value="@("industrial")">@L["projects.type_industrial"]</MudSelectItem>
+                <MudSelectItem Value="@("comercial")">@L["projects.type_commercial"]</MudSelectItem>
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="6">
-            <MudTextField @bind-Value="_form.MandanteName" Label="Nombre Mandante" Variant="Variant.Outlined" FullWidth="true" />
+            <MudTextField @bind-Value="_form.MandanteName" Label="@L["projects.mandante_name"]" Variant="Variant.Outlined" FullWidth="true" />
         </MudItem>
         <MudItem xs="12">
-            <MudTextField @bind-Value="_form.Description" Label="Descripción" Variant="Variant.Outlined"
+            <MudTextField @bind-Value="_form.Description" Label="@L["common.description"]" Variant="Variant.Outlined"
                           FullWidth="true" Lines="3" />
         </MudItem>
         <MudItem xs="12">
-            <MudTextField @bind-Value="_form.Address" Label="Dirección" Variant="Variant.Outlined" FullWidth="true" />
+            <MudTextField @bind-Value="_form.Address" Label="@L["common.address"]" Variant="Variant.Outlined" FullWidth="true" />
         </MudItem>
         <MudItem xs="12" sm="6">
-            <MudTextField @bind-Value="_form.City" Label="Ciudad" Variant="Variant.Outlined" FullWidth="true" />
+            <MudTextField @bind-Value="_form.City" Label="@L["common.city"]" Variant="Variant.Outlined" FullWidth="true" />
         </MudItem>
         <MudItem xs="12" sm="6">
-            <MudTextField @bind-Value="_form.Region" Label="Región" Variant="Variant.Outlined" FullWidth="true" />
+            <MudTextField @bind-Value="_form.Region" Label="@L["common.region"]" Variant="Variant.Outlined" FullWidth="true" />
         </MudItem>
         <MudItem xs="12" sm="6">
-            <MudDatePicker @bind-Date="_form.StartDate" Label="Fecha Inicio" Variant="Variant.Outlined"
+            <MudDatePicker @bind-Date="_form.StartDate" Label="@L["common.start_date"]" Variant="Variant.Outlined"
                            DateFormat="dd/MM/yyyy" />
         </MudItem>
         <MudItem xs="12" sm="6">
-            <MudDatePicker @bind-Date="_form.EstimatedEndDate" Label="Fecha Término Estimada" Variant="Variant.Outlined"
+            <MudDatePicker @bind-Date="_form.EstimatedEndDate" Label="@L["projects.estimated_end"]" Variant="Variant.Outlined"
                            DateFormat="dd/MM/yyyy" />
         </MudItem>
         <MudItem xs="12" sm="6">
-            <MudNumericField @bind-Value="_form.TotalUnits" Label="Total Unidades" Variant="Variant.Outlined" FullWidth="true" />
+            <MudNumericField @bind-Value="_form.TotalUnits" Label="@L["projects.total_units"]" Variant="Variant.Outlined" FullWidth="true" />
         </MudItem>
     </MudGrid>
 
     <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-6" Spacing="2">
-        <MudButton Variant="Variant.Outlined" OnClick='() => Nav.NavigateTo("/projects")'>Cancelar</MudButton>
+        <MudButton Variant="Variant.Outlined" OnClick='() => Nav.NavigateTo("/projects")'>@L["common.cancel"]</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Disabled="_saving">
-            @(_saving ? "Guardando..." : "Crear Proyecto")
+            @(_saving ? L["common.saving"] : L["projects.new"])
         </MudButton>
     </MudStack>
 </MudPaper>
@@ -80,15 +82,18 @@
 
     protected override async Task OnInitializedAsync()
     {
+        L.OnChange += StateHasChanged;
         try { _companies = await Api.GetCompaniesAsync(); }
-        catch { Snackbar.Add("Error cargando empresas", Severity.Error); }
+        catch { Snackbar.Add(L["companies.error_loading"], Severity.Error); }
     }
+
+    public void Dispose() { L.OnChange -= StateHasChanged; }
 
     private async Task Save()
     {
         if (_form.CompanyId == Guid.Empty || string.IsNullOrWhiteSpace(_form.Code) || string.IsNullOrWhiteSpace(_form.Name))
         {
-            Snackbar.Add("Empresa, código y nombre son requeridos", Severity.Warning);
+            Snackbar.Add(L["projects.validation_required"], Severity.Warning);
             return;
         }
         _saving = true;
@@ -108,8 +113,8 @@
             _form.MandanteName
         });
         _saving = false;
-        if (ok) { Snackbar.Add("Proyecto creado", Severity.Success); Nav.NavigateTo("/projects"); }
-        else    Snackbar.Add("Error al crear proyecto", Severity.Error);
+        if (ok) { Snackbar.Add(L["projects.created"], Severity.Success); Nav.NavigateTo("/projects"); }
+        else    Snackbar.Add(L["projects.error_creating"], Severity.Error);
     }
 
     private class ProjectForm

@@ -1,0 +1,29 @@
+@inject IDialogService DialogService
+
+<MudTooltip Text="@L["help.title"]">
+    <MudIconButton Icon="@Icons.Material.Filled.HelpOutline"
+                   Color="@Color" Size="@Size"
+                   OnClick="@ShowHelp" />
+</MudTooltip>
+
+@code {
+    [Parameter] public string Module { get; set; } = "";
+    [Parameter] public Color Color { get; set; } = Color.Default;
+    [Parameter] public Size Size { get; set; } = Size.Medium;
+
+    private async Task ShowHelp()
+    {
+        var parameters = new DialogParameters<HelpDialog>
+        {
+            { x => x.Module, Module }
+        };
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = true,
+            CloseOnEscapeKey = true
+        };
+        await DialogService.ShowAsync<HelpDialog>(L["help.title"], parameters, options);
+    }
+}

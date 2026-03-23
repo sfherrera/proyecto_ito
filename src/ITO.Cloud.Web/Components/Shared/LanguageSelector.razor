@@ -1,0 +1,28 @@
+@inject IAppLocalizer L
+
+<MudMenu Icon="@Icons.Material.Filled.Language" Color="Color.Inherit"
+         AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+    @foreach (var lang in L.SupportedLanguages)
+    {
+        var code = lang;
+        <MudMenuItem OnClick="@(() => ChangeLanguage(code))">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudText>@L.GetLanguageFlag(code)</MudText>
+                <MudText Typo="@(code == L.Lang ? Typo.subtitle2 : Typo.body2)">
+                    @L.GetLanguageDisplayName(code)
+                </MudText>
+                @if (code == L.Lang)
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Color="Color.Primary" />
+                }
+            </MudStack>
+        </MudMenuItem>
+    }
+</MudMenu>
+
+@code {
+    private async Task ChangeLanguage(string lang)
+    {
+        await L.SetLanguageAsync(lang);
+    }
+}

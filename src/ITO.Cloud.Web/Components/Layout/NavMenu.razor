@@ -1,29 +1,91 @@
+@implements IDisposable
+
 <MudNavMenu>
+    <!-- Dashboard: todos -->
     <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">
-        Dashboard
+        @L["nav.dashboard"]
     </MudNavLink>
 
-    <MudNavGroup Title="Proyectos" Icon="@Icons.Material.Filled.Folder" Expanded="true">
-        <MudNavLink Href="/companies" Icon="@Icons.Material.Filled.Business">
-            Empresas
-        </MudNavLink>
-        <MudNavLink Href="/projects" Icon="@Icons.Material.Filled.AccountTree">
-            Proyectos
-        </MudNavLink>
-    </MudNavGroup>
+    <!-- Grupo Proyectos -->
+    <AuthorizeView Roles="SuperAdmin,AdminTenant,Director,Supervisor,Inspector">
+        <MudNavGroup Title="@L["nav.projects_group"]" Icon="@Icons.Material.Filled.Folder" Expanded="true">
+            <AuthorizeView Roles="SuperAdmin,AdminTenant,Director" Context="_mgmt">
+                <MudNavLink Href="/companies" Icon="@Icons.Material.Filled.Business">
+                    @L["nav.companies"]
+                </MudNavLink>
+            </AuthorizeView>
+            <MudNavLink Href="/projects" Icon="@Icons.Material.Filled.AccountTree">
+                @L["nav.projects"]
+            </MudNavLink>
+            <AuthorizeView Roles="SuperAdmin,AdminTenant,Director,Supervisor" Context="_ops">
+                <MudNavLink Href="/specialties" Icon="@Icons.Material.Filled.Category">
+                    @L["nav.specialties"]
+                </MudNavLink>
+                <MudNavLink Href="/contractors" Icon="@Icons.Material.Filled.Engineering">
+                    @L["nav.contractors"]
+                </MudNavLink>
+            </AuthorizeView>
+        </MudNavGroup>
+    </AuthorizeView>
 
-    <MudNavGroup Title="Inspecciones" Icon="@Icons.Material.Filled.Assignment" Expanded="true">
+    <!-- Grupo Inspecciones -->
+    <MudNavGroup Title="@L["nav.inspections_group"]" Icon="@Icons.Material.Filled.Assignment" Expanded="true">
         <MudNavLink Href="/inspections" Icon="@Icons.Material.Filled.CheckCircle">
-            Inspecciones
+            @L["nav.inspections"]
         </MudNavLink>
-        <MudNavLink Href="/observations" Icon="@Icons.Material.Filled.Warning">
-            Observaciones
-        </MudNavLink>
+        <AuthorizeView Roles="SuperAdmin,AdminTenant,Director,Supervisor,Inspector">
+            <MudNavLink Href="/observations" Icon="@Icons.Material.Filled.Warning">
+                @L["nav.observations"]
+            </MudNavLink>
+        </AuthorizeView>
+        <AuthorizeView Roles="SuperAdmin,AdminTenant,Director,Supervisor,Inspector">
+            <MudNavLink Href="/templates" Icon="@Icons.Material.Filled.ListAlt">
+                @L["nav.templates"]
+            </MudNavLink>
+        </AuthorizeView>
     </MudNavGroup>
 
-    <MudDivider Class="my-2" />
+    <!-- Documentación -->
+    <AuthorizeView Roles="SuperAdmin,AdminTenant,Director,Supervisor,Inspector">
+        <MudNavLink Href="/documents" Icon="@Icons.Material.Filled.Description">
+            @L["nav.documents"]
+        </MudNavLink>
+    </AuthorizeView>
 
-    <MudNavLink Href="/users" Icon="@Icons.Material.Filled.People">
-        Usuarios
+    <!-- Reportes -->
+    <AuthorizeView Roles="SuperAdmin,AdminTenant,Director,Supervisor">
+        <MudNavGroup Title="@L["nav.reports_group"]" Icon="@Icons.Material.Filled.Assessment">
+            <MudNavLink Href="/reports" Icon="@Icons.Material.Filled.PictureAsPdf">
+                @L["nav.reports"]
+            </MudNavLink>
+        </MudNavGroup>
+    </AuthorizeView>
+
+    <!-- Administracion -->
+    <AuthorizeView Roles="SuperAdmin,AdminTenant,Director">
+        <MudDivider Class="my-2" />
+        <MudNavLink Href="/users" Icon="@Icons.Material.Filled.People">
+            @L["nav.users"]
+        </MudNavLink>
+    </AuthorizeView>
+
+    <!-- Idioma -->
+    <MudDivider Class="my-2" />
+    <MudNavLink Href="/settings/language" Icon="@Icons.Material.Filled.Language">
+        @L["nav.language"]
     </MudNavLink>
 </MudNavMenu>
+
+@code {
+    protected override void OnInitialized()
+    {
+        L.OnChange += OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        L.OnChange -= OnLanguageChanged;
+    }
+}

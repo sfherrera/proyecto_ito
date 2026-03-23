@@ -1,4 +1,6 @@
+using ITO.Cloud.Domain.Entities.Identity;
 using ITO.Cloud.Domain.Entities.Inspections;
+using ITO.Cloud.Domain.Entities.Projects;
 using ITO.Cloud.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -14,8 +16,8 @@ public class InspectionConfiguration : IEntityTypeConfiguration<Inspection>
         builder.Property(i => i.Code).HasMaxLength(50).IsRequired();
         builder.Property(i => i.Title).HasMaxLength(300).IsRequired();
         builder.Property(i => i.InspectionType).HasMaxLength(100).HasDefaultValue("ordinaria");
-        builder.Property(i => i.Status).HasConversion<string>().HasMaxLength(50);
-        builder.Property(i => i.Priority).HasConversion<string>().HasMaxLength(20);
+        builder.Property(i => i.Status);
+        builder.Property(i => i.Priority);
         builder.Property(i => i.WeatherConditions).HasMaxLength(100);
         builder.Property(i => i.SyncId).HasMaxLength(100);
         builder.Property(i => i.Score).HasPrecision(5, 2);
@@ -30,6 +32,18 @@ public class InspectionConfiguration : IEntityTypeConfiguration<Inspection>
         builder.HasIndex(i => new { i.TenantId, i.ScheduledDate });
         builder.HasIndex(i => i.AssignedToId);
         builder.HasIndex(i => i.SyncId).HasFilter("sync_id IS NOT NULL");
+
+        builder.HasOne<ApplicationUser>(i => i.AssignedTo)
+            .WithMany()
+            .HasForeignKey(i => i.AssignedToId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne<Contractor>(i => i.Contractor)
+            .WithMany()
+            .HasForeignKey(i => i.ContractorId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.HasMany(i => i.Answers)
             .WithOne(a => a.Inspection)

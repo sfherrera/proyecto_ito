@@ -1,36 +1,42 @@
 @page "/users"
+@attribute [Authorize(Roles = "SuperAdmin,AdminTenant,Director")]
+@implements IDisposable
 
+@using ITO.Cloud.Web.Auth
 @inject ItoApiService Api
 @inject ISnackbar Snackbar
 
-<PageTitle>Usuarios — ITO Cloud</PageTitle>
+<PageTitle>@L["users.title"] — ITO Cloud</PageTitle>
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudText Typo="Typo.h5">
-        <MudIcon Icon="@Icons.Material.Filled.People" Class="mr-2" />Usuarios
+        <MudIcon Icon="@Icons.Material.Filled.People" Class="mr-2" />@L["users.title"]
     </MudText>
     <MudSpacer />
-    <MudButton Variant="Variant.Filled" Color="Color.Primary"
-               StartIcon="@Icons.Material.Filled.PersonAdd"
-               OnClick="OpenCreateDialog">
-        Nuevo Usuario
-    </MudButton>
+    <HelpButton Module="users" />
+    <AuthorizeView Roles="SuperAdmin,AdminTenant">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.PersonAdd"
+                   OnClick="OpenCreateDialog">
+            @L["users.new"]
+        </MudButton>
+    </AuthorizeView>
 </MudStack>
 
 <MudPaper Elevation="2">
     <MudTable Items="_users" Hover="true" Striped="true" Loading="_loading"
               Filter="FilterFunc" Dense="true">
         <ToolBarContent>
-            <MudTextField @bind-Value="_searchText" Placeholder="Buscar..." Adornment="Adornment.Start"
+            <MudTextField @bind-Value="_searchText" Placeholder="@L["common.search"]" Adornment="Adornment.Start"
                           AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="mt-0" />
         </ToolBarContent>
         <HeaderContent>
-            <MudTh>Nombre</MudTh>
-            <MudTh>Email</MudTh>
-            <MudTh>Cargo</MudTh>
-            <MudTh>Roles</MudTh>
-            <MudTh>Estado</MudTh>
-            <MudTh>Acciones</MudTh>
+            <MudTh>@L["common.name"]</MudTh>
+            <MudTh>@L["common.email"]</MudTh>
+            <MudTh>@L["users.position"]</MudTh>
+            <MudTh>@L["users.roles"]</MudTh>
+            <MudTh>@L["common.status"]</MudTh>
+            <MudTh>@L["common.actions"]</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd>@context.FullName</MudTd>
@@ -44,7 +50,7 @@
             </MudTd>
             <MudTd>
                 <MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Default)" Size="Size.Small">
-                    @(context.IsActive ? "Activo" : "Inactivo")
+                    @(context.IsActive ? L["common.active_m"] : L["common.inactive_m"])
                 </MudChip>
             </MudTd>
             <MudTd>
@@ -53,7 +59,7 @@
             </MudTd>
         </RowTemplate>
         <NoRecordsContent>
-            <MudText Class="pa-4">No se encontraron usuarios.</MudText>
+            <MudText Class="pa-4">@L["users.no_records"]</MudText>
         </NoRecordsContent>
     </MudTable>
 </MudPaper>
@@ -61,57 +67,57 @@
 <!-- Dialog crear / editar usuario -->
 <MudDialog @bind-Visible="_showDialog">
     <TitleContent>
-        <MudText Typo="Typo.h6">@(_editId.HasValue ? "Editar Usuario" : "Nuevo Usuario")</MudText>
+        <MudText Typo="Typo.h6">@(_editId.HasValue ? L["users.edit"] : L["users.new"])</MudText>
     </TitleContent>
     <DialogContent>
         <MudGrid>
             <MudItem xs="12" sm="6">
-                <MudTextField @bind-Value="_form.FirstName" Label="Nombre *" Variant="Variant.Outlined" FullWidth="true" />
+                <MudTextField @bind-Value="_form.FirstName" Label="@L["users.first_name"]" Variant="Variant.Outlined" FullWidth="true" />
             </MudItem>
             <MudItem xs="12" sm="6">
-                <MudTextField @bind-Value="_form.LastName" Label="Apellido *" Variant="Variant.Outlined" FullWidth="true" />
+                <MudTextField @bind-Value="_form.LastName" Label="@L["users.last_name"]" Variant="Variant.Outlined" FullWidth="true" />
             </MudItem>
             <MudItem xs="12">
-                <MudTextField @bind-Value="_form.Email" Label="Email *" InputType="InputType.Email"
+                <MudTextField @bind-Value="_form.Email" Label="@(L["common.email"] + " *")" InputType="InputType.Email"
                               Variant="Variant.Outlined" FullWidth="true" Disabled="_editId.HasValue" />
             </MudItem>
             @if (!_editId.HasValue)
             {
                 <MudItem xs="12">
-                    <MudTextField @bind-Value="_form.Password" Label="Contraseña *" InputType="InputType.Password"
+                    <MudTextField @bind-Value="_form.Password" Label="@L["users.password"]" InputType="InputType.Password"
                                   Variant="Variant.Outlined" FullWidth="true" />
                 </MudItem>
             }
             <MudItem xs="12" sm="6">
-                <MudTextField @bind-Value="_form.Rut" Label="RUT" Variant="Variant.Outlined" FullWidth="true" />
+                <MudTextField @bind-Value="_form.Rut" Label="@L["common.rut"]" Variant="Variant.Outlined" FullWidth="true" />
             </MudItem>
             <MudItem xs="12" sm="6">
-                <MudTextField @bind-Value="_form.Position" Label="Cargo" Variant="Variant.Outlined" FullWidth="true" />
+                <MudTextField @bind-Value="_form.Position" Label="@L["users.position"]" Variant="Variant.Outlined" FullWidth="true" />
             </MudItem>
             @if (!_editId.HasValue)
             {
                 <MudItem xs="12">
-                    <MudSelect @bind-Value="_form.Role" Label="Rol" Variant="Variant.Outlined" FullWidth="true">
-                        <MudSelectItem Value="@("Inspector")">Inspector</MudSelectItem>
-                        <MudSelectItem Value="@("Supervisor")">Supervisor</MudSelectItem>
-                        <MudSelectItem Value="@("Director")">Director</MudSelectItem>
-                        <MudSelectItem Value="@("AdminTenant")">Administrador</MudSelectItem>
-                        <MudSelectItem Value="@("Contratista")">Contratista</MudSelectItem>
+                    <MudSelect @bind-Value="_form.Role" Label="@L["users.role"]" Variant="Variant.Outlined" FullWidth="true">
+                        <MudSelectItem Value="@("Inspector")">@L["users.role_inspector"]</MudSelectItem>
+                        <MudSelectItem Value="@("Supervisor")">@L["users.role_supervisor"]</MudSelectItem>
+                        <MudSelectItem Value="@("Director")">@L["users.role_director"]</MudSelectItem>
+                        <MudSelectItem Value="@("AdminTenant")">@L["users.role_admin"]</MudSelectItem>
+                        <MudSelectItem Value="@("Contratista")">@L["users.role_contractor"]</MudSelectItem>
                     </MudSelect>
                 </MudItem>
             }
             @if (_editId.HasValue)
             {
                 <MudItem xs="12">
-                    <MudSwitch @bind-Value="_form.IsActive" Label="Activo" Color="Color.Success" />
+                    <MudSwitch @bind-Value="_form.IsActive" Label="@L["common.active_m"]" Color="Color.Success" />
                 </MudItem>
             }
         </MudGrid>
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="() => _showDialog = false">Cancelar</MudButton>
+        <MudButton OnClick="() => _showDialog = false">@L["common.cancel"]</MudButton>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveUser" Disabled="_saving">
-            @(_saving ? "Guardando..." : "Guardar")
+            @(_saving ? L["common.saving"] : L["common.save"])
         </MudButton>
     </DialogActions>
 </MudDialog>
@@ -125,13 +131,19 @@
     private Guid?  _editId;
     private UserForm _form          = new();
 
-    protected override async Task OnInitializedAsync() => await LoadUsers();
+    protected override async Task OnInitializedAsync()
+    {
+        L.OnChange += StateHasChanged;
+        await LoadUsers();
+    }
+
+    public void Dispose() { L.OnChange -= StateHasChanged; }
 
     private async Task LoadUsers()
     {
         _loading = true;
         try   { _users = await Api.GetUsersAsync(); }
-        catch { Snackbar.Add("Error cargando usuarios", Severity.Error); }
+        catch { Snackbar.Add(L["users.error_loading"], Severity.Error); }
         finally { _loading = false; }
     }
 
@@ -179,7 +191,7 @@
         {
             if (string.IsNullOrWhiteSpace(_form.Email) || string.IsNullOrWhiteSpace(_form.Password))
             {
-                Snackbar.Add("Email y contraseña son requeridos", Severity.Warning);
+                Snackbar.Add(L["users.validation_required"], Severity.Warning);
                 _saving = false;
                 return;
             }
@@ -193,8 +205,8 @@
 
         _saving     = false;
         _showDialog = false;
-        if (ok) { Snackbar.Add(_editId.HasValue ? "Usuario actualizado" : "Usuario creado", Severity.Success); await LoadUsers(); }
-        else    Snackbar.Add("Error al guardar usuario", Severity.Error);
+        if (ok) { Snackbar.Add(_editId.HasValue ? L["users.updated"] : L["users.created"], Severity.Success); await LoadUsers(); }
+        else    Snackbar.Add(L["users.error_saving"], Severity.Error);
     }
 
     private class UserForm

@@ -55,8 +55,8 @@ public class CreateInspectionCommandHandler : IRequestHandler<CreateInspectionCo
             Title            = request.Title,
             InspectionType   = request.InspectionType,
             Priority         = request.Priority,
-            ScheduledDate    = request.ScheduledDate,
-            ScheduledEndDate = request.ScheduledEndDate,
+            ScheduledDate    = DateTime.SpecifyKind(request.ScheduledDate, DateTimeKind.Utc),
+            ScheduledEndDate = request.ScheduledEndDate.HasValue ? DateTime.SpecifyKind(request.ScheduledEndDate.Value, DateTimeKind.Utc) : null,
             StageId          = request.StageId,
             SectorId         = request.SectorId,
             UnitId           = request.UnitId,
@@ -71,7 +71,17 @@ public class CreateInspectionCommandHandler : IRequestHandler<CreateInspectionCo
 
         _db.Inspections.Add(inspection);
         await _db.SaveChangesAsync(cancellationToken);
-        return _mapper.Map<InspectionDto>(inspection);
+        return new InspectionDto(
+            inspection.Id, inspection.ProjectId, inspection.TemplateId, inspection.Code, inspection.Title,
+            inspection.InspectionType, inspection.Status, inspection.Priority,
+            inspection.ScheduledDate, inspection.StartedAt, inspection.FinishedAt,
+            inspection.AssignedToId, null,
+            inspection.ContractorId, null,
+            inspection.StageId, inspection.SectorId, inspection.UnitId,
+            inspection.Score, inspection.Passed,
+            inspection.TotalQuestions, inspection.AnsweredQuestions,
+            inspection.ConformingCount, inspection.NonConformingCount,
+            inspection.IsOfflineCreated, inspection.Notes, inspection.CreatedAt);
     }
 }
 
@@ -93,7 +103,16 @@ public class StartInspectionCommandHandler : IRequestHandler<StartInspectionComm
         inspection.Status    = InspectionStatus.EnProceso;
         inspection.StartedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(cancellationToken);
-        return _mapper.Map<InspectionDto>(inspection);
+        return new InspectionDto(
+            inspection.Id, inspection.ProjectId, inspection.TemplateId, inspection.Code, inspection.Title,
+            inspection.InspectionType, inspection.Status, inspection.Priority,
+            inspection.ScheduledDate, inspection.StartedAt, inspection.FinishedAt,
+            inspection.AssignedToId, null, inspection.ContractorId, null,
+            inspection.StageId, inspection.SectorId, inspection.UnitId,
+            inspection.Score, inspection.Passed,
+            inspection.TotalQuestions, inspection.AnsweredQuestions,
+            inspection.ConformingCount, inspection.NonConformingCount,
+            inspection.IsOfflineCreated, inspection.Notes, inspection.CreatedAt);
     }
 }
 
@@ -183,7 +202,16 @@ public class SubmitInspectionCommandHandler : IRequestHandler<SubmitInspectionCo
         }
 
         await _db.SaveChangesAsync(cancellationToken);
-        return _mapper.Map<InspectionDto>(inspection);
+        return new InspectionDto(
+            inspection.Id, inspection.ProjectId, inspection.TemplateId, inspection.Code, inspection.Title,
+            inspection.InspectionType, inspection.Status, inspection.Priority,
+            inspection.ScheduledDate, inspection.StartedAt, inspection.FinishedAt,
+            inspection.AssignedToId, null, inspection.ContractorId, null,
+            inspection.StageId, inspection.SectorId, inspection.UnitId,
+            inspection.Score, inspection.Passed,
+            inspection.TotalQuestions, inspection.AnsweredQuestions,
+            inspection.ConformingCount, inspection.NonConformingCount,
+            inspection.IsOfflineCreated, inspection.Notes, inspection.CreatedAt);
     }
 
     private async Task AutoCreateObservations(Inspection inspection, List<InspectionAnswer> answers, CancellationToken ct)

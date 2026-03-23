@@ -1,10 +1,13 @@
 @page "/inspections/{Id:guid}"
+@attribute [Authorize]
+@implements IDisposable
 
+@using ITO.Cloud.Web.Auth
 @inject ItoApiService Api
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
 
-<PageTitle>Inspección — ITO Cloud</PageTitle>
+<PageTitle>@L["inspections.title"] — ITO Cloud</PageTitle>
 
 @if (_loading)
 {
@@ -12,7 +15,7 @@
 }
 else if (_inspection == null)
 {
-    <MudAlert Severity="Severity.Error">Inspección no encontrada.</MudAlert>
+    <MudAlert Severity="Severity.Error">@L["inspections.not_found"]</MudAlert>
 }
 else
 {
@@ -21,38 +24,43 @@ else
         <MudText Typo="Typo.h5">@_inspection.Code — @_inspection.Title</MudText>
         <MudChip T="string" Color="@GetStatusColor(_inspection.Status)" Size="Size.Small">@_inspection.Status</MudChip>
         <MudSpacer />
+        <HelpButton Module="inspection-detail" />
         @if (_inspection.Status == "Programada")
         {
-            <MudButton Variant="Variant.Filled" Color="Color.Success"
-                       StartIcon="@Icons.Material.Filled.PlayArrow"
-                       OnClick="StartInspection" Disabled="_working">
-                Iniciar
-            </MudButton>
-            <MudButton Variant="Variant.Outlined" Color="Color.Error"
-                       StartIcon="@Icons.Material.Filled.Cancel"
-                       OnClick="OpenCancelDialog" Disabled="_working">
-                Cancelar
-            </MudButton>
+            <AuthorizeView Roles="SuperAdmin,AdminTenant,Director,Supervisor,Inspector">
+                <MudButton Variant="Variant.Filled" Color="Color.Success"
+                           StartIcon="@Icons.Material.Filled.PlayArrow"
+                           OnClick="StartInspection" Disabled="_working">
+                    @L["inspections.start"]
+                </MudButton>
+            </AuthorizeView>
+            <AuthorizeView Roles="SuperAdmin,AdminTenant,Director,Supervisor">
+                <MudButton Variant="Variant.Outlined" Color="Color.Error"
+                           StartIcon="@Icons.Material.Filled.Cancel"
+                           OnClick="OpenCancelDialog" Disabled="_working">
+                    @L["common.cancel"]
+                </MudButton>
+            </AuthorizeView>
         }
     </MudStack>
 
     <MudGrid>
         <MudItem xs="12" md="6">
             <MudPaper Elevation="2" Class="pa-4">
-                <MudText Typo="Typo.subtitle1" Class="mb-3">Información General</MudText>
+                <MudText Typo="Typo.subtitle1" Class="mb-3">@L["inspections.info"]</MudText>
                 <MudList T="string" Dense="true">
-                    <MudListItem><b>Tipo:</b> @_inspection.InspectionType</MudListItem>
-                    <MudListItem><b>Prioridad:</b> @_inspection.Priority</MudListItem>
-                    <MudListItem><b>Inspector:</b> @(_inspection.AssignedToName ?? "—")</MudListItem>
-                    <MudListItem><b>Contratista:</b> @(_inspection.ContractorName ?? "—")</MudListItem>
-                    <MudListItem><b>Fecha programada:</b> @_inspection.ScheduledDate.ToString("dd/MM/yyyy HH:mm")</MudListItem>
+                    <MudListItem><b>@L["inspections.type_label"]</b> @_inspection.InspectionType</MudListItem>
+                    <MudListItem><b>@L["inspections.priority_label"]</b> @_inspection.Priority</MudListItem>
+                    <MudListItem><b>@L["inspections.inspector"]</b> @(_inspection.AssignedToName ?? "—")</MudListItem>
+                    <MudListItem><b>@L["inspections.contractor"]</b> @(_inspection.ContractorName ?? "—")</MudListItem>
+                    <MudListItem><b>@L["inspections.scheduled_date_label"]</b> @_inspection.ScheduledDate.ToString("dd/MM/yyyy HH:mm")</MudListItem>
                     @if (_inspection.StartedAt.HasValue)
                     {
-                        <MudListItem><b>Iniciada:</b> @_inspection.StartedAt.Value.ToString("dd/MM/yyyy HH:mm")</MudListItem>
+                        <MudListItem><b>@L["inspections.started_at"]</b> @_inspection.StartedAt.Value.ToString("dd/MM/yyyy HH:mm")</MudListItem>
                     }
                     @if (_inspection.FinishedAt.HasValue)
                     {
-                        <MudListItem><b>Finalizada:</b> @_inspection.FinishedAt.Value.ToString("dd/MM/yyyy HH:mm")</MudListItem>
+                        <MudListItem><b>@L["inspections.finished_at"]</b> @_inspection.FinishedAt.Value.ToString("dd/MM/yyyy HH:mm")</MudListItem>
                     }
                 </MudList>
             </MudPaper>
@@ -60,26 +68,26 @@ else
 
         <MudItem xs="12" md="6">
             <MudPaper Elevation="2" Class="pa-4">
-                <MudText Typo="Typo.subtitle1" Class="mb-3">Resultados</MudText>
+                <MudText Typo="Typo.subtitle1" Class="mb-3">@L["inspections.results"]</MudText>
                 @if (_inspection.Score.HasValue)
                 {
                     <MudStack AlignItems="AlignItems.Center" Class="mb-2">
                         <MudText Typo="Typo.h3" Color="@(_inspection.Passed == true ? Color.Success : Color.Error)">
                             @_inspection.Score.Value.ToString("F1")%
                         </MudText>
-                        <MudText Typo="Typo.body2">@(_inspection.Passed == true ? "APROBADA" : "NO APROBADA")</MudText>
+                        <MudText Typo="Typo.body2">@(_inspection.Passed == true ? L["inspections.passed"] : L["inspections.not_passed"])</MudText>
                     </MudStack>
                 }
                 else
                 {
-                    <MudText Class="mud-text-secondary">Sin puntaje aún</MudText>
+                    <MudText Class="mud-text-secondary">@L["inspections.no_score"]</MudText>
                 }
                 <MudDivider Class="my-2" />
                 <MudList T="string" Dense="true">
-                    <MudListItem><b>Total preguntas:</b> @_inspection.TotalQuestions</MudListItem>
-                    <MudListItem><b>Respondidas:</b> @_inspection.AnsweredQuestions</MudListItem>
-                    <MudListItem><b>Conformes:</b> @_inspection.ConformingCount</MudListItem>
-                    <MudListItem><b>No conformes:</b> @_inspection.NonConformingCount</MudListItem>
+                    <MudListItem><b>@L["inspections.total_questions"]</b> @_inspection.TotalQuestions</MudListItem>
+                    <MudListItem><b>@L["inspections.answered"]</b> @_inspection.AnsweredQuestions</MudListItem>
+                    <MudListItem><b>@L["inspections.conforming"]</b> @_inspection.ConformingCount</MudListItem>
+                    <MudListItem><b>@L["inspections.non_conforming"]</b> @_inspection.NonConformingCount</MudListItem>
                 </MudList>
             </MudPaper>
         </MudItem>
@@ -88,7 +96,7 @@ else
         {
             <MudItem xs="12">
                 <MudPaper Elevation="2" Class="pa-4">
-                    <MudText Typo="Typo.subtitle1" Class="mb-2">Notas</MudText>
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">@L["common.notes"]</MudText>
                     <MudText>@_inspection.Notes</MudText>
                 </MudPaper>
             </MudItem>
@@ -98,13 +106,13 @@ else
 
 <!-- Dialog cancelar -->
 <MudDialog @bind-Visible="_showCancelDialog">
-    <TitleContent><MudText Typo="Typo.h6">Cancelar Inspección</MudText></TitleContent>
+    <TitleContent><MudText Typo="Typo.h6">@L["inspections.cancel_dialog_title"]</MudText></TitleContent>
     <DialogContent>
-        <MudTextField @bind-Value="_cancelReason" Label="Motivo (opcional)" Variant="Variant.Outlined" FullWidth="true" Lines="3" />
+        <MudTextField @bind-Value="_cancelReason" Label="@L["inspections.cancel_reason"]" Variant="Variant.Outlined" FullWidth="true" Lines="3" />
     </DialogContent>
     <DialogActions>
-        <MudButton OnClick="() => _showCancelDialog = false">Cerrar</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="CancelInspection">Confirmar</MudButton>
+        <MudButton OnClick="() => _showCancelDialog = false">@L["common.close"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="CancelInspection">@L["common.confirm"]</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -119,17 +127,20 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        L.OnChange += StateHasChanged;
         try   { _inspection = await Api.GetInspectionByIdAsync(Id); }
-        catch { Snackbar.Add("Error cargando inspección", Severity.Error); }
+        catch { Snackbar.Add(L["inspections.error_loading_detail"], Severity.Error); }
         finally { _loading = false; }
     }
+
+    public void Dispose() { L.OnChange -= StateHasChanged; }
 
     private async Task StartInspection()
     {
         _working = true;
         var ok = await Api.StartInspectionAsync(Id);
-        if (ok) { Snackbar.Add("Inspección iniciada", Severity.Success); _inspection = await Api.GetInspectionByIdAsync(Id); }
-        else    Snackbar.Add("Error al iniciar", Severity.Error);
+        if (ok) { Snackbar.Add(L["inspections.started"], Severity.Success); _inspection = await Api.GetInspectionByIdAsync(Id); }
+        else    Snackbar.Add(L["inspections.error_starting"], Severity.Error);
         _working = false;
     }
 
@@ -140,8 +151,8 @@ else
         _showCancelDialog = false;
         _working = true;
         var ok = await Api.CancelInspectionAsync(Id, _cancelReason);
-        if (ok) { Snackbar.Add("Inspección cancelada", Severity.Success); Nav.NavigateTo("/inspections"); }
-        else    Snackbar.Add("Error al cancelar", Severity.Error);
+        if (ok) { Snackbar.Add(L["inspections.cancelled"], Severity.Success); Nav.NavigateTo("/inspections"); }
+        else    Snackbar.Add(L["inspections.error_cancelling"], Severity.Error);
         _working = false;
     }
 

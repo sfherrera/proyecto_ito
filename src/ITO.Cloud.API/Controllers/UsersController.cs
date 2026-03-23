@@ -1,6 +1,7 @@
 using ITO.Cloud.Application.Features.Users.DTOs;
 using ITO.Cloud.Domain.Entities.Identity;
 using ITO.Cloud.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,7 @@ public class UsersController : BaseApiController
     }
 
     [HttpGet]
+    [Authorize(Roles = Roles.Management)]
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
         [FromQuery] string? search = null, [FromQuery] bool? isActive = null)
@@ -52,6 +54,7 @@ public class UsersController : BaseApiController
     }
 
     [HttpGet("{id:guid}")]
+    [Authorize(Roles = Roles.Management)]
     public async Task<IActionResult> GetById(Guid id)
     {
         var user = await _userManager.FindByIdAsync(id.ToString());
@@ -63,6 +66,7 @@ public class UsersController : BaseApiController
     }
 
     [HttpPost]
+    [Authorize(Roles = Roles.Admins)]
     public async Task<IActionResult> Create([FromBody] CreateUserDto dto,
         [FromServices] Domain.Interfaces.ITenantContext tenantContext)
     {
@@ -88,6 +92,7 @@ public class UsersController : BaseApiController
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = Roles.Admins)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateUserDto dto)
     {
         var user = await _userManager.FindByIdAsync(id.ToString());

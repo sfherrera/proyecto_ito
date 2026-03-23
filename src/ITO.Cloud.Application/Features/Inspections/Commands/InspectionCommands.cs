@@ -31,7 +31,8 @@ public class CreateInspectionCommandValidator : AbstractValidator<CreateInspecti
         RuleFor(x => x.ProjectId).NotEmpty();
         RuleFor(x => x.TemplateId).NotEmpty();
         RuleFor(x => x.Title).NotEmpty().MaximumLength(300);
-        RuleFor(x => x.ScheduledDate).GreaterThan(DateTime.UtcNow.AddMinutes(-5))
-            .WithMessage("La fecha programada no puede ser en el pasado.");
+        RuleFor(x => x.ScheduledDate)
+            .Must(d => d.Date >= DateTime.UtcNow.AddDays(-1).Date)
+            .WithMessage("La fecha programada no puede ser anterior a ayer.");
     }
 }

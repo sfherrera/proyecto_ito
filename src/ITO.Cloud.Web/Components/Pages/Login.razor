@@ -1,9 +1,10 @@
 @page "/login"
 @layout ITO.Cloud.Web.Components.Layout.EmptyLayout
+@implements IDisposable
 @inject ApiAuthService AuthService
 @inject NavigationManager Nav
 
-<PageTitle>ITO Cloud — Iniciar Sesión</PageTitle>
+<PageTitle>@L["login.title"]</PageTitle>
 
 <MudThemeProvider />
 <MudPopoverProvider />
@@ -19,7 +20,7 @@
                     <MudText Typo="Typo.h5" Color="Color.Primary">ITO Cloud</MudText>
                 </MudStack>
                 <MudText Typo="Typo.body2" Class="text-center mud-text-secondary">
-                    Plataforma de Inspección Técnica de Obras
+                    @L["app.subtitle"]
                 </MudText>
             </CardHeaderContent>
         </MudCardHeader>
@@ -28,7 +29,7 @@
                 <DataAnnotationsValidator />
 
                 <MudTextField @bind-Value="_model.Email"
-                              Label="Correo electrónico"
+                              Label="@L["login.email"]"
                               InputType="InputType.Email"
                               Variant="Variant.Outlined"
                               FullWidth="true"
@@ -38,7 +39,7 @@
                               Disabled="_loading" />
 
                 <MudTextField @bind-Value="_model.Password"
-                              Label="Contraseña"
+                              Label="@L["login.password"]"
                               InputType="InputType.Password"
                               Variant="Variant.Outlined"
                               FullWidth="true"
@@ -61,11 +62,11 @@
                     @if (_loading)
                     {
                         <MudProgressCircular Class="mr-2" Size="Size.Small" Indeterminate="true" />
-                        <span>Ingresando...</span>
+                        <span>@L["login.loading"]</span>
                     }
                     else
                     {
-                        <span>Iniciar Sesión</span>
+                        <span>@L["login.submit"]</span>
                     }
                 </MudButton>
             </EditForm>
@@ -80,6 +81,16 @@
     private bool   _loading;
     private string? _error;
 
+    protected override void OnInitialized()
+    {
+        L.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        L.OnChange -= StateHasChanged;
+    }
+
     private async Task HandleLogin()
     {
         _loading = true;
@@ -88,7 +99,7 @@
         var (success, error) = await AuthService.LoginAsync(_model.Email, _model.Password);
 
         if (success)
-            Nav.NavigateTo(string.IsNullOrEmpty(ReturnUrl) ? "/" : Uri.UnescapeDataString(ReturnUrl), forceLoad: true);
+            Nav.NavigateTo(string.IsNullOrEmpty(ReturnUrl) ? "/" : Uri.UnescapeDataString(ReturnUrl), forceLoad: false);
         else
         {
             _error   = error;

@@ -18,6 +18,33 @@
     <Routes @rendermode="@(new InteractiveServerRenderMode(prerender: false))" />
     <script src="_framework/blazor.web.js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script>
+        window.itoSaveFile = function (base64, fileName, mimeType) {
+            var bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+            var blob = new Blob([bytes], { type: mimeType });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+
+        window.downloadFileFromStream = async function (fileName, contentStreamReference) {
+            var arrayBuffer = await contentStreamReference.arrayBuffer();
+            var blob = new Blob([arrayBuffer]);
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+    </script>
 </body>
 
 </html>

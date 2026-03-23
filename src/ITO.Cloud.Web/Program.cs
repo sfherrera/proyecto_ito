@@ -27,13 +27,16 @@ builder.Services.AddScoped<AuthenticationStateProvider, JwtAuthStateProvider>();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddAuthorizationCore();
 
+// ── Localization ──────────────────────────────────────────────────────────────
+builder.Services.AddScoped<IAppLocalizer, AppLocalizer>();
+
 // ── HttpClient → API ─────────────────────────────────────────────────────────
 var apiUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7200";
 builder.Services.AddScoped<ApiAuthService>();
 builder.Services.AddHttpClient<ItoApiService>(client =>
 {
     client.BaseAddress = new Uri(apiUrl);
-    client.Timeout     = TimeSpan.FromSeconds(5);   // evita esperas largas si la API no arrancó aún
+    client.Timeout     = TimeSpan.FromSeconds(30);  // reportes PDF/Excel pueden tomar más tiempo
 });
 
 var app = builder.Build();

@@ -9,10 +9,10 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace ITO.Cloud.Infrastructure.Persistence.Migrations
+namespace ITO.Cloud.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260318035133_InitialCreate")]
+    [Migration("20260321222425_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -488,10 +488,8 @@ namespace ITO.Cloud.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(5,2)")
                         .HasColumnName("passing_score");
 
-                    b.Property<string>("Priority")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer")
                         .HasColumnName("priority");
 
                     b.Property<Guid>("ProjectId")
@@ -527,10 +525,8 @@ namespace ITO.Cloud.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("started_at");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
                         .HasColumnName("status");
 
                     b.Property<Guid?>("SupervisorId")
@@ -591,6 +587,9 @@ namespace ITO.Cloud.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AssignedToId")
                         .HasDatabaseName("ix_inspections_assigned_to_id");
+
+                    b.HasIndex("ContractorId")
+                        .HasDatabaseName("ix_inspections_contractor_id");
 
                     b.HasIndex("ProjectId")
                         .HasDatabaseName("ix_inspections_project_id");
@@ -924,10 +923,8 @@ namespace ITO.Cloud.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("sector_id");
 
-                    b.Property<string>("Severity")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
+                    b.Property<int>("Severity")
+                        .HasColumnType("integer")
                         .HasColumnName("severity");
 
                     b.Property<Guid?>("SpecialtyId")
@@ -938,10 +935,8 @@ namespace ITO.Cloud.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("stage_id");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
                         .HasColumnName("status");
 
                     b.Property<string>("SyncId")
@@ -2528,12 +2523,28 @@ namespace ITO.Cloud.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("ITO.Cloud.Domain.Entities.Inspections.Inspection", b =>
                 {
+                    b.HasOne("ITO.Cloud.Domain.Entities.Identity.ApplicationUser", "AssignedTo")
+                        .WithMany()
+                        .HasForeignKey("AssignedToId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_inspections_users_assigned_to_id");
+
+                    b.HasOne("ITO.Cloud.Domain.Entities.Projects.Contractor", "Contractor")
+                        .WithMany()
+                        .HasForeignKey("ContractorId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_inspections_contractors_contractor_id");
+
                     b.HasOne("ITO.Cloud.Domain.Entities.Projects.Project", null)
                         .WithMany("Inspections")
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_inspections_projects_project_id");
+
+                    b.Navigation("AssignedTo");
+
+                    b.Navigation("Contractor");
                 });
 
             modelBuilder.Entity("ITO.Cloud.Domain.Entities.Inspections.InspectionAnswer", b =>

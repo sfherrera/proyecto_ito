@@ -1,5 +1,4 @@
 using AutoMapper;
-using AutoMapper.QueryableExtensions;
 using ITO.Cloud.Application.Common.Exceptions;
 using ITO.Cloud.Application.Common.Models;
 using ITO.Cloud.Application.Features.Observations.DTOs;
@@ -29,15 +28,14 @@ public class GetObservationsQueryHandler : IRequestHandler<GetObservationsQuery,
         if (request.Overdue == true)       query = query.Where(o => o.DueDate < DateOnly.FromDateTime(DateTime.UtcNow) && o.Status != ObservationStatus.Cerrada);
 
         var total = await query.CountAsync(cancellationToken);
-        var items = await query
+        var entities = await query
             .OrderByDescending(o => o.Severity)
             .ThenByDescending(o => o.DetectedAt)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
-            .ProjectTo<ObservationDto>(_mapper.ConfigurationProvider)
             .ToListAsync(cancellationToken);
 
-        return PaginatedList<ObservationDto>.Create(items, total, request.Page, request.PageSize);
+        return PaginatedList<ObservationDto>.Create(_mapper.Map<List<ObservationDto>>(entities), total, request.Page, request.PageSize);
     }
 }
 

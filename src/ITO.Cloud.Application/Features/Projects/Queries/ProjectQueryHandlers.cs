@@ -1,5 +1,4 @@
 using AutoMapper;
-using AutoMapper.QueryableExtensions;
 using ITO.Cloud.Application.Common.Exceptions;
 using ITO.Cloud.Application.Common.Models;
 using ITO.Cloud.Application.Features.Projects.DTOs;
@@ -30,14 +29,13 @@ public class GetProjectsQueryHandler : IRequestHandler<GetProjectsQuery, Paginat
             query = query.Where(p => p.Status == request.Status);
 
         var total = await query.CountAsync(cancellationToken);
-        var items = await query
+        var entities = await query
             .OrderByDescending(p => p.CreatedAt)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
-            .ProjectTo<ProjectDto>(_mapper.ConfigurationProvider)
             .ToListAsync(cancellationToken);
 
-        return PaginatedList<ProjectDto>.Create(items, total, request.Page, request.PageSize);
+        return PaginatedList<ProjectDto>.Create(_mapper.Map<List<ProjectDto>>(entities), total, request.Page, request.PageSize);
     }
 }
 
@@ -70,9 +68,8 @@ public class GetProjectStagesQueryHandler : IRequestHandler<GetProjectStagesQuer
         var stages = await _db.ProjectStages.AsNoTracking()
             .Where(s => s.ProjectId == request.ProjectId)
             .OrderBy(s => s.OrderIndex)
-            .ProjectTo<ProjectStageDto>(_mapper.ConfigurationProvider)
             .ToListAsync(cancellationToken);
-        return stages;
+        return _mapper.Map<List<ProjectStageDto>>(stages);
     }
 }
 
@@ -85,11 +82,11 @@ public class GetProjectSectorsQueryHandler : IRequestHandler<GetProjectSectorsQu
 
     public async Task<IList<ProjectSectorDto>> Handle(GetProjectSectorsQuery request, CancellationToken cancellationToken)
     {
-        return await _db.ProjectSectors.AsNoTracking()
+        var sectors = await _db.ProjectSectors.AsNoTracking()
             .Where(s => s.ProjectId == request.ProjectId)
             .OrderBy(s => s.OrderIndex)
-            .ProjectTo<ProjectSectorDto>(_mapper.ConfigurationProvider)
             .ToListAsync(cancellationToken);
+        return _mapper.Map<List<ProjectSectorDto>>(sectors);
     }
 }
 
@@ -108,9 +105,9 @@ public class GetProjectUnitsQueryHandler : IRequestHandler<GetProjectUnitsQuery,
         if (request.SectorId.HasValue)
             query = query.Where(u => u.SectorId == request.SectorId.Value);
 
-        return await query
+        var units = await query
             .OrderBy(u => u.UnitCode)
-            .ProjectTo<ProjectUnitDto>(_mapper.ConfigurationProvider)
             .ToListAsync(cancellationToken);
+        return _mapper.Map<List<ProjectUnitDto>>(units);
     }
 }

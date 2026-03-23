@@ -2,6 +2,7 @@ using ITO.Cloud.Application.Features.Observations.Commands;
 using ITO.Cloud.Application.Features.Observations.DTOs;
 using ITO.Cloud.Application.Features.Observations.Queries;
 using ITO.Cloud.Domain.Enums;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ITO.Cloud.API.Controllers;
@@ -10,6 +11,7 @@ namespace ITO.Cloud.API.Controllers;
 public class ObservationsController : BaseApiController
 {
     [HttpGet]
+    [Authorize(Roles = Roles.Inspectors)]
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 20,
         [FromQuery] Guid? projectId = null,
@@ -26,6 +28,7 @@ public class ObservationsController : BaseApiController
         OkData(await Mediator.Send(new GetObservationByIdQuery(id, includeHistory)));
 
     [HttpPost]
+    [Authorize(Roles = Roles.Inspectors)]
     public async Task<IActionResult> Create([FromBody] CreateObservationDto dto) =>
         CreatedData(await Mediator.Send(new CreateObservationCommand(
             dto.ProjectId, dto.Title, dto.Description, dto.Severity,
@@ -34,11 +37,13 @@ public class ObservationsController : BaseApiController
             dto.ContractorId, dto.AssignedToId, dto.DueDate, dto.RootCause)));
 
     [HttpPatch("{id:guid}/status")]
+    [Authorize(Roles = Roles.Operations)]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateObservationStatusDto dto) =>
         OkData(await Mediator.Send(new UpdateObservationStatusCommand(
             id, dto.NewStatus, dto.Comment, dto.AssignedToId, dto.ExtendedDueDate)));
 
     [HttpPost("{id:guid}/close")]
+    [Authorize(Roles = Roles.Operations)]
     public async Task<IActionResult> Close(Guid id, [FromQuery] string? comment = null) =>
         OkData(await Mediator.Send(new CloseObservationCommand(id, comment)));
 }

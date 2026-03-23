@@ -1,6 +1,11 @@
 <Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
         <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+            <Authorizing>
+                <div style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;color:#1565C0">
+                    @L["app.loading"]
+                </div>
+            </Authorizing>
             <NotAuthorized>
                 <RedirectToLogin />
             </NotAuthorized>

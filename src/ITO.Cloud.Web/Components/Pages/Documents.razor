@@ -1,0 +1,382 @@
+@page "/documents"
+@attribute [Authorize(Roles = "SuperAdmin,AdminTenant,Director,Supervisor,Inspector")]
+@implements IDisposable
+
+@using ITO.Cloud.Web.Auth
+@inject ItoApiService Api
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>@L["documents.title"] — ITO Cloud</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">
+        <MudIcon Icon="@Icons.Material.Filled.Description" Class="mr-2" />@L["documents.title"]
+    </MudText>
+    <MudSpacer />
+    <HelpButton Module="documents" />
+    <AuthorizeView Roles="SuperAdmin,AdminTenant,Director,Supervisor">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.CloudUpload"
+                   OnClick="OpenUploadDialog">
+            @L["documents.upload"]
+        </MudButton>
+    </AuthorizeView>
+</MudStack>
+
+<!-- Filtros -->
+<MudPaper Elevation="1" Class="pa-3 mb-4">
+    <MudGrid>
+        <MudItem xs="12" sm="4">
+            <MudSelect @bind-Value="_filterProject" Label="@L["documents.project"]" Variant="Variant.Outlined"
+                       Clearable="true" Dense="true" FullWidth="true">
+                @foreach (var p in _projects)
+                {
+                    <MudSelectItem Value="@p.Id">@p.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudSelect @bind-Value="_filterCategory" Label="@L["documents.category"]" Variant="Variant.Outlined"
+                       Clearable="true" Dense="true" FullWidth="true">
+                <MudSelectItem Value="@("plano")">@L["documents.cat_plano"]</MudSelectItem>
+                <MudSelectItem Value="@("especificacion")">@L["documents.cat_especificacion"]</MudSelectItem>
+                <MudSelectItem Value="@("contrato")">@L["documents.cat_contrato"]</MudSelectItem>
+                <MudSelectItem Value="@("procedimiento")">@L["documents.cat_procedimiento"]</MudSelectItem>
+                <MudSelectItem Value="@("permiso")">@L["documents.cat_permiso"]</MudSelectItem>
+                <MudSelectItem Value="@("informe")">@L["documents.cat_informe"]</MudSelectItem>
+                <MudSelectItem Value="@("acta")">@L["documents.cat_acta"]</MudSelectItem>
+                <MudSelectItem Value="@("presupuesto")">@L["documents.cat_presupuesto"]</MudSelectItem>
+                <MudSelectItem Value="@("cronograma")">@L["documents.cat_cronograma"]</MudSelectItem>
+                <MudSelectItem Value="@("general")">@L["documents.cat_general"]</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4" Class="d-flex align-end">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadDocuments"
+                       StartIcon="@Icons.Material.Filled.Search" FullWidth="true">
+                @L["documents.filter"]
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudPaper Elevation="2">
+    <MudTable Items="_documents" Hover="true" Striped="true" Loading="_loading"
+              Filter="FilterFunc" Dense="true">
+        <ToolBarContent>
+            <MudTextField @bind-Value="_searchText" Placeholder="@L["common.search"]" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" Class="mt-0" />
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>@L["common.name"]</MudTh>
+            <MudTh>@L["documents.category"]</MudTh>
+            <MudTh>@L["documents.project"]</MudTh>
+            <MudTh>@L["documents.file_name"]</MudTh>
+            <MudTh>@L["documents.file_size"]</MudTh>
+            <MudTh>@L["common.version"]</MudTh>
+            <MudTh>@L["common.date"]</MudTh>
+            <MudTh>@L["common.actions"]</MudTh>
+        </HeaderContent>
+        <RowTemplate Context="doc">
+            <MudTd>@doc.Name</MudTd>
+            <MudTd>
+                <MudChip T="string" Size="Size.Small" Color="@GetCategoryColor(doc.Category)">
+                    @FormatCategory(doc.Category)
+                </MudChip>
+            </MudTd>
+            <MudTd>@doc.ProjectName</MudTd>
+            <MudTd>
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@GetFileIcon(doc.MimeType)" Size="Size.Small" />
+                    <MudText Typo="Typo.body2">@doc.FileName</MudText>
+                </MudStack>
+            </MudTd>
+            <MudTd>@FormatFileSize(doc.FileSizeBytes)</MudTd>
+            <MudTd>@(doc.Version ?? "—")</MudTd>
+            <MudTd>@doc.CreatedAt.ToString("dd/MM/yyyy")</MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Primary"
+                               Title="@L["common.download"]" OnClick="@(() => DownloadDocument(doc))" />
+                <AuthorizeView Roles="SuperAdmin,AdminTenant,Director,Supervisor">
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                   Title="@L["common.delete"]" OnClick="@(() => DeleteDocument(doc.Id))" />
+                </AuthorizeView>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Class="pa-4">@L["documents.no_records"]</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+<!-- Upload Dialog -->
+<MudDialog @bind-Visible="_showUploadDialog" Options="new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true }">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Class="mr-2" />@L["documents.upload_title"]
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudSelect @bind-Value="_uploadForm.ProjectId" Label="@(L["documents.project"] + " *")" Variant="Variant.Outlined" FullWidth="true">
+                    @foreach (var p in _projects)
+                    {
+                        <MudSelectItem Value="@p.Id">@p.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_uploadForm.Name" Label="@L["documents.name"]"
+                              Variant="Variant.Outlined" FullWidth="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect @bind-Value="_uploadForm.Category" Label="@L["documents.category"]" Variant="Variant.Outlined" FullWidth="true">
+                    <MudSelectItem Value="@("plano")">@L["documents.cat_plano"]</MudSelectItem>
+                    <MudSelectItem Value="@("especificacion")">@L["documents.cat_especificacion"]</MudSelectItem>
+                    <MudSelectItem Value="@("contrato")">@L["documents.cat_contrato"]</MudSelectItem>
+                    <MudSelectItem Value="@("procedimiento")">@L["documents.cat_procedimiento"]</MudSelectItem>
+                    <MudSelectItem Value="@("permiso")">@L["documents.cat_permiso"]</MudSelectItem>
+                    <MudSelectItem Value="@("informe")">@L["documents.cat_informe"]</MudSelectItem>
+                    <MudSelectItem Value="@("acta")">@L["documents.cat_acta"]</MudSelectItem>
+                    <MudSelectItem Value="@("presupuesto")">@L["documents.cat_presupuesto"]</MudSelectItem>
+                    <MudSelectItem Value="@("cronograma")">@L["documents.cat_cronograma"]</MudSelectItem>
+                    <MudSelectItem Value="@("general")">@L["documents.cat_general"]</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_uploadForm.Version" Label="@L["documents.version"]" Variant="Variant.Outlined"
+                              FullWidth="true" Placeholder="@L["documents.version_hint"]" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_uploadForm.Description" Label="@L["common.description"]" Variant="Variant.Outlined"
+                              FullWidth="true" Lines="2" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudFileUpload T="IBrowserFile" Accept=".pdf,.dwg,.dxf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.zip,.rar"
+                               FilesChanged="OnFileSelected" MaximumFileCount="1">
+                    <ActivatorContent>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.AttachFile" FullWidth="true">
+                            @(_uploadForm.File != null ? _uploadForm.File.Name : L["documents.select_file"])
+                        </MudButton>
+                    </ActivatorContent>
+                </MudFileUpload>
+                @if (_uploadForm.File != null)
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Info" Class="mt-1">
+                        @_uploadForm.File.Name — @FormatFileSize(_uploadForm.File.Size)
+                    </MudText>
+                }
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _showUploadDialog = false">@L["common.cancel"]</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UploadDocument"
+                   Disabled="_uploading">
+            @(_uploading ? L["documents.uploading"] : L["documents.upload"])
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<DocumentDto> _documents = [];
+    private List<ProjectDto> _projects   = [];
+    private bool   _loading    = true;
+    private string _searchText = string.Empty;
+
+    // Filtros
+    private Guid?  _filterProject  = null;
+    private string? _filterCategory = null;
+
+    // Upload
+    private bool _showUploadDialog = false;
+    private bool _uploading        = false;
+    private UploadForm _uploadForm = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        L.OnChange += OnLanguageChanged;
+        try
+        {
+            var projectsTask = Api.GetProjectsAsync();
+            var docsTask     = Api.GetDocumentsAsync();
+            _projects  = await projectsTask;
+            _documents = await docsTask;
+        }
+        catch { Snackbar.Add(L["documents.error_loading"], Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private void OnLanguageChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() { L.OnChange -= OnLanguageChanged; }
+
+    private async Task LoadDocuments()
+    {
+        _loading = true;
+        try { _documents = await Api.GetDocumentsAsync(_filterProject, _filterCategory); }
+        catch { Snackbar.Add(L["documents.error_loading"], Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private void OpenUploadDialog()
+    {
+        _uploadForm = new UploadForm();
+        if (_filterProject.HasValue)
+            _uploadForm.ProjectId = _filterProject.Value;
+        _showUploadDialog = true;
+    }
+
+    private void OnFileSelected(IBrowserFile file)
+    {
+        _uploadForm.File = file;
+    }
+
+    private async Task UploadDocument()
+    {
+        if (_uploadForm.ProjectId == Guid.Empty)
+        {
+            Snackbar.Add(L["documents.select_project"], Severity.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_uploadForm.Name))
+        {
+            Snackbar.Add(L["documents.enter_name"], Severity.Warning);
+            return;
+        }
+        if (_uploadForm.File == null)
+        {
+            Snackbar.Add(L["documents.select_file_required"], Severity.Warning);
+            return;
+        }
+
+        _uploading = true;
+        try
+        {
+            var content = new MultipartFormDataContent();
+            content.Add(new StringContent(_uploadForm.ProjectId.ToString()), "projectId");
+            content.Add(new StringContent(_uploadForm.Name), "name");
+            content.Add(new StringContent(_uploadForm.Category), "category");
+            if (!string.IsNullOrEmpty(_uploadForm.Description))
+                content.Add(new StringContent(_uploadForm.Description), "description");
+            if (!string.IsNullOrEmpty(_uploadForm.Version))
+                content.Add(new StringContent(_uploadForm.Version), "version");
+
+            var stream = _uploadForm.File.OpenReadStream(52_428_800); // 50MB
+            content.Add(new StreamContent(stream), "file", _uploadForm.File.Name);
+
+            var ok = await Api.UploadDocumentAsync(
+                _uploadForm.ProjectId, _uploadForm.Name, _uploadForm.Category,
+                _uploadForm.Description, _uploadForm.Version, content);
+
+            if (ok)
+            {
+                Snackbar.Add(L["documents.uploaded"], Severity.Success);
+                _showUploadDialog = false;
+                await LoadDocuments();
+            }
+            else
+            {
+                Snackbar.Add(L["documents.error_uploading"], Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally { _uploading = false; }
+    }
+
+    private async Task DownloadDocument(DocumentDto doc)
+    {
+        try
+        {
+            var bytes = await Api.DownloadDocumentAsync(doc.Id);
+            if (bytes != null)
+            {
+                using var streamRef = new DotNetStreamReference(new MemoryStream(bytes));
+                await JS.InvokeVoidAsync("downloadFileFromStream", doc.FileName, streamRef);
+            }
+            else Snackbar.Add(L["documents.error_downloading"], Severity.Error);
+        }
+        catch { Snackbar.Add(L["documents.error_downloading"], Severity.Error); }
+    }
+
+    private async Task DeleteDocument(Guid id)
+    {
+        var ok = await Api.DeleteDocumentAsync(id);
+        if (ok)
+        {
+            Snackbar.Add(L["documents.deleted"], Severity.Success);
+            await LoadDocuments();
+        }
+        else Snackbar.Add(L["documents.error_deleting"], Severity.Error);
+    }
+
+    private bool FilterFunc(DocumentDto d) =>
+        string.IsNullOrEmpty(_searchText) ||
+        d.Name.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+        d.FileName.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+        (d.ProjectName ?? "").Contains(_searchText, StringComparison.OrdinalIgnoreCase);
+
+    private string FormatCategory(string cat) => cat switch
+    {
+        "plano"          => L["documents.cat_plano"],
+        "especificacion" => L["documents.cat_especificacion"],
+        "contrato"       => L["documents.cat_contrato"],
+        "procedimiento"  => L["documents.cat_procedimiento"],
+        "permiso"        => L["documents.cat_permiso"],
+        "informe"        => L["documents.cat_informe"],
+        "acta"           => L["documents.cat_acta"],
+        "presupuesto"    => L["documents.cat_presupuesto"],
+        "cronograma"     => L["documents.cat_cronograma"],
+        _                => L["documents.cat_general"]
+    };
+
+    private static Color GetCategoryColor(string cat) => cat switch
+    {
+        "plano"          => Color.Primary,
+        "especificacion" => Color.Info,
+        "contrato"       => Color.Warning,
+        "procedimiento"  => Color.Secondary,
+        "permiso"        => Color.Success,
+        "informe"        => Color.Tertiary,
+        _                => Color.Default
+    };
+
+    private static string GetFileIcon(string? mimeType) => mimeType switch
+    {
+        "application/pdf"                                                             => Icons.Material.Filled.PictureAsPdf,
+        "image/jpeg" or "image/png" or "image/gif"                                    => Icons.Material.Filled.Image,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            or "application/vnd.ms-excel"                                             => Icons.Material.Filled.TableChart,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            or "application/msword"                                                   => Icons.Material.Filled.Article,
+        "application/zip" or "application/x-rar-compressed"                           => Icons.Material.Filled.FolderZip,
+        _                                                                             => Icons.Material.Filled.InsertDriveFile
+    };
+
+    private static string FormatFileSize(long? bytes)
+    {
+        if (!bytes.HasValue) return "—";
+        return bytes.Value switch
+        {
+            < 1024         => $"{bytes.Value} B",
+            < 1048576      => $"{bytes.Value / 1024.0:F1} KB",
+            < 1073741824   => $"{bytes.Value / 1048576.0:F1} MB",
+            _              => $"{bytes.Value / 1073741824.0:F1} GB"
+        };
+    }
+
+    private class UploadForm
+    {
+        public Guid    ProjectId   { get; set; }
+        public string  Name        { get; set; } = string.Empty;
+        public string  Category    { get; set; } = "plano";
+        public string? Description { get; set; }
+        public string? Version     { get; set; }
+        public IBrowserFile? File  { get; set; }
+    }
+}

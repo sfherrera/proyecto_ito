@@ -1,0 +1,21 @@
+<MudStack Spacing="2" Class="mb-3">
+    <MudText Typo="Typo.subtitle1" Color="Color.Primary"><b>@Title</b></MudText>
+    <MudText Typo="Typo.body2" Class="mud-text-secondary">@Description</MudText>
+
+    @if (Items != null && Items.Length > 0)
+    {
+        <MudList T="string" Dense="true" ReadOnly="true">
+            @foreach (var item in Items)
+            {
+                <MudListItem Icon="@Icons.Material.Filled.ChevronRight" IconColor="Color.Primary"
+                             Text="@item" />
+            }
+        </MudList>
+    }
+</MudStack>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Description { get; set; } = "";
+    [Parameter] public string[] Items { get; set; } = [];
+}

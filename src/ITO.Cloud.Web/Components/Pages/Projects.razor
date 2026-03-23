@@ -1,38 +1,43 @@
 @page "/projects"
+@attribute [Authorize(Roles = "SuperAdmin,AdminTenant,Director,Supervisor,Inspector")]
+@implements IDisposable
 
-
+@using ITO.Cloud.Web.Auth
 @inject ItoApiService Api
 @inject ISnackbar Snackbar
 
-<PageTitle>Proyectos — ITO Cloud</PageTitle>
+<PageTitle>@L["projects.title"] — ITO Cloud</PageTitle>
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudText Typo="Typo.h5">
-        <MudIcon Icon="@Icons.Material.Filled.AccountTree" Class="mr-2" />Proyectos
+        <MudIcon Icon="@Icons.Material.Filled.AccountTree" Class="mr-2" />@L["projects.title"]
     </MudText>
     <MudSpacer />
-    <MudButton Variant="Variant.Filled" Color="Color.Primary"
-               StartIcon="@Icons.Material.Filled.Add"
-               Href="/projects/new">
-        Nuevo Proyecto
-    </MudButton>
+    <HelpButton Module="projects" />
+    <AuthorizeView Roles="SuperAdmin,AdminTenant,Director">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   Href="/projects/new">
+            @L["projects.new"]
+        </MudButton>
+    </AuthorizeView>
 </MudStack>
 
 <MudPaper Elevation="2">
     <MudTable Items="_projects" Hover="true" Striped="true" Loading="_loading"
               Filter="FilterFunc" Dense="true">
         <ToolBarContent>
-            <MudTextField @bind-Value="_searchText" Placeholder="Buscar..." Adornment="Adornment.Start"
+            <MudTextField @bind-Value="_searchText" Placeholder="@L["common.search"]" Adornment="Adornment.Start"
                           AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium"
                           Class="mt-0" Immediate="true" />
         </ToolBarContent>
         <HeaderContent>
-            <MudTh>Código</MudTh>
-            <MudTh>Nombre</MudTh>
-            <MudTh>Empresa</MudTh>
-            <MudTh>Estado</MudTh>
-            <MudTh>Inicio</MudTh>
-            <MudTh>Acciones</MudTh>
+            <MudTh>@L["common.code"]</MudTh>
+            <MudTh>@L["common.name"]</MudTh>
+            <MudTh>@L["projects.company"]</MudTh>
+            <MudTh>@L["common.status"]</MudTh>
+            <MudTh>@L["projects.start"]</MudTh>
+            <MudTh>@L["common.actions"]</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd><MudChip T="string" Size="Size.Small" Color="Color.Primary">@context.Code</MudChip></MudTd>
@@ -50,7 +55,7 @@
             </MudTd>
         </RowTemplate>
         <NoRecordsContent>
-            <MudText Class="pa-4">No se encontraron proyectos.</MudText>
+            <MudText Class="pa-4">@L["projects.no_records"]</MudText>
         </NoRecordsContent>
     </MudTable>
 </MudPaper>
@@ -62,10 +67,13 @@
 
     protected override async Task OnInitializedAsync()
     {
+        L.OnChange += StateHasChanged;
         try   { _projects = await Api.GetProjectsAsync(); }
-        catch { Snackbar.Add("Error cargando proyectos", Severity.Error); }
+        catch { Snackbar.Add(L["projects.error_loading"], Severity.Error); }
         finally { _loading = false; }
     }
+
+    public void Dispose() { L.OnChange -= StateHasChanged; }
 
     private bool FilterFunc(ProjectDto p) =>
         string.IsNullOrEmpty(_searchText) ||

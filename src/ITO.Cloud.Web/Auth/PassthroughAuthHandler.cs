@@ -20,7 +20,8 @@ public class PassthroughAuthHandler(
 
     protected override Task HandleChallengeAsync(AuthenticationProperties properties)
     {
-        // No-op: deja que Blazor maneje la redirección a /login
+        var returnUrl = Uri.EscapeDataString(Request.Path + Request.QueryString);
+        Response.Redirect($"/login?returnUrl={returnUrl}");
         return Task.CompletedTask;
     }
 }
