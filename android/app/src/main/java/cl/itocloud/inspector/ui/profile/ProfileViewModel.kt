@@ -3,7 +3,7 @@ package cl.itocloud.inspector.ui.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cl.itocloud.inspector.domain.model.User
-import cl.itocloud.inspector.domain.repository.AuthRepository
+import cl.itocloud.inspector.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

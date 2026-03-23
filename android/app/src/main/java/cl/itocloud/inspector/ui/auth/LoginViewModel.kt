@@ -2,7 +2,7 @@ package cl.itocloud.inspector.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import cl.itocloud.inspector.domain.repository.AuthRepository
+import cl.itocloud.inspector.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

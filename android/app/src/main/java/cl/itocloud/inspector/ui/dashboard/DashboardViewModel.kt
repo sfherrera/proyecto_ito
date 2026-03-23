@@ -3,7 +3,7 @@ package cl.itocloud.inspector.ui.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cl.itocloud.inspector.domain.model.InspectionStatus
-import cl.itocloud.inspector.domain.repository.AuthRepository
+import cl.itocloud.inspector.data.repository.AuthRepository
 import cl.itocloud.inspector.domain.repository.InspectionRepository
 import cl.itocloud.inspector.domain.repository.ObservationRepository
 import cl.itocloud.inspector.domain.repository.SyncRepository

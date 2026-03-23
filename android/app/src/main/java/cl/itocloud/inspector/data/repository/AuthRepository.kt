@@ -9,6 +9,7 @@ import cl.itocloud.inspector.data.remote.dto.ChangePasswordRequest
 import cl.itocloud.inspector.data.remote.dto.LoginRequest
 import cl.itocloud.inspector.data.remote.dto.LoginResponse
 import cl.itocloud.inspector.data.remote.dto.UserResponse
+import cl.itocloud.inspector.domain.model.User
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -145,6 +146,26 @@ class AuthRepository(
      */
     suspend fun logout() {
         clearToken()
+    }
+
+    /**
+     * Returns the current user as a domain User model, or null if not logged in.
+     */
+    suspend fun getCurrentUser(): User? {
+        val info = getUserInfo() ?: return null
+        val nameParts = info.fullName.split(" ")
+        return User(
+            id = info.userId,
+            firstName = nameParts.firstOrNull() ?: "",
+            lastName = nameParts.drop(1).joinToString(" "),
+            fullName = info.fullName,
+            email = info.email,
+            rut = null,
+            position = null,
+            avatarUrl = null,
+            tenantId = info.tenantId,
+            roles = info.roles
+        )
     }
 }
 
