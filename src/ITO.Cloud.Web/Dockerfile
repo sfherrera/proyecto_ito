@@ -12,11 +12,15 @@ RUN dotnet restore "src/ITO.Cloud.Web/ITO.Cloud.Web.csproj"
 COPY . .
 
 RUN dotnet publish "src/ITO.Cloud.Web/ITO.Cloud.Web.csproj" \
-    -c Release -o /app/publish --no-restore
+    -c Release -o /app/publish
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
+
+# Instalar curl para healthcheck de Docker
+RUN apt-get update && apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/publish .
 

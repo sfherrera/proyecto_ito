@@ -3,9 +3,15 @@ using ITO.Cloud.Web.Components;
 using ITO.Cloud.Web.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ── DataProtection (persistir claves para antiforgery y ProtectedSessionStorage) ─
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo("/app/dataprotection-keys"))
+    .SetApplicationName("ITO.Cloud.Web");
 
 // ── HttpContextAccessor ──────────────────────────────────────────────────────
 builder.Services.AddHttpContextAccessor();
@@ -44,8 +50,7 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    app.UseHsts();
-    app.UseHttpsRedirection();
+    // HSTS y HTTPS redirection deshabilitados: la app corre detrás de Nginx (HTTP interno)
 }
 app.UseAuthentication();
 app.UseStaticFiles();

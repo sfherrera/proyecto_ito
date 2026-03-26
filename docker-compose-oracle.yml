@@ -1,0 +1,213 @@
+version: "3.9"
+
+# ─── ITO Cloud Docker Compose para Oracle Cloud con PostgreSQL ───────────────
+# Todos los servicios accesibles en puerto 80 mediante Nginx reverse proxy
+# Basado en: docker-compose.yml original
+# Optimizado para: Ambiente de producción en Oracle Cloud
+
+networks:
+  ito-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+  web-dataprotection:
+
+services:
+
+  # ── Nginx Reverse Proxy (Puerto 80) ────────────────────────────────────────
+  nginx:
+    image: nginx:latest
+    container_name: ito-nginx
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── PostgreSQL 16 (Base de Datos) ──────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: ito-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: joanmiro  # ⚠️ CAMBIAR EN PRODUCCIÓN
+      POSTGRES_DB: ito_cloud
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docs/sql/001_create_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+      - ./docs/sql/002_seed_data.sql:/docker-entrypoint-initdb.d/002_seed_data.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ito_cloud"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ito-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Redis (Caché / SignalR Backplane) ──────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: ito-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass redispass123  # ⚠️ CAMBIAR EN PRODUCCIÓN
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - ito-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── MinIO (Almacenamiento S3-compatible) ───────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: ito-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin          # ⚠️ CAMBIAR EN PRODUCCIÓN
+      MINIO_ROOT_PASSWORD: minioadmin123   # ⚠️ CAMBIAR EN PRODUCCIÓN
+    ports:
+      - "9000:9000"   # API S3
+      - "9001:9001"   # Consola web
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - ito-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── ITO Cloud API (.NET) ───────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: src/ITO.Cloud.API/Dockerfile
+    container_name: ito-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      
+      # ─ Base de Datos ─
+      ConnectionStrings__DefaultConnection: >-
+        Host=postgres;Port=5432;Database=ito_cloud;Username=postgres;Password=joanmiro
+      
+      # ─ JWT/Seguridad ─
+      JwtSettings__SecretKey: "${JWT_SECRET:-SuperSecretKeyParaITOCloud2025XYZ!}"
+      JwtSettings__Issuer: ITO.Cloud.API
+      JwtSettings__Audience: ITO.Cloud.Clients
+      JwtSettings__ExpirationMinutes: "480"
+      
+      # ─ MinIO/Almacenamiento ─
+      MinIOSettings__Endpoint: minio:9000
+      MinIOSettings__AccessKey: minioadmin
+      MinIOSettings__SecretKey: minioadmin123
+      MinIOSettings__UseSSL: "false"
+      MinIOSettings__BucketName: ito-documents
+      
+      # ─ Redis/Caché ─
+      RedisSettings__ConnectionString: redis:6379,password=redispass123
+      
+      # ─ Logging ─
+      Serilog__MinimumLevel: Information
+      
+    ports:
+      - "8080:8080"
+    networks:
+      - ito-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ── ITO Cloud Web (Blazor Server) ──────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: src/ITO.Cloud.Web/Dockerfile
+    container_name: ito-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8081
+      
+      # ─ API Backend ─
+      ApiSettings__BaseUrl: http://api:8080
+      WebSettings__BasePath: /appito
+      
+      # ─ JWT/Seguridad ─
+      JwtSettings__SecretKey: "${JWT_SECRET:-SuperSecretKeyParaITOCloud2025XYZ!}"
+
+    volumes:
+      - web-dataprotection:/app/dataprotection-keys
+    ports:
+      - "8081:8081"
+    networks:
+      - ito-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
